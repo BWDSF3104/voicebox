@@ -248,7 +248,9 @@ async fn start_server(
                         // Process name doesn't contain "voicebox" — could be an external
                         // Python/uvicorn/Docker server. Verify via HTTP health check.
                         println!("Port {} in use by '{}' (PID: {}), checking if it's a Voicebox server...", SERVER_PORT, command, pid_str);
-                        if check_health(SERVER_PORT) {
+                        // blocking-in-async would panic in reqwest::blocking
+                        let healthy = tokio::task::spawn_blocking(|| check_health(SERVER_PORT)).await.unwrap_or(false);
+                        if healthy {
                             println!("Health check passed — reusing external server on port {}", SERVER_PORT);
                             return Ok(format!("http://127.0.0.1:{}", SERVER_PORT));
                         }
@@ -280,7 +282,9 @@ async fn start_server(
             // Process name doesn't match — could be an external Python/Docker server.
             // Verify via HTTP health check before giving up.
             println!("Port {} in use by unknown process, checking if it's a Voicebox server...", SERVER_PORT);
-            if check_health(SERVER_PORT) {
+            // blocking-in-async would panic in reqwest::blocking
+            let healthy = tokio::task::spawn_blocking(|| check_health(SERVER_PORT)).await.unwrap_or(false);
+            if healthy {
                 println!("Health check passed — reusing external server on port {}", SERVER_PORT);
                 return Ok(format!("http://127.0.0.1:{}", SERVER_PORT));
             }
@@ -719,19 +723,35 @@ async fn stop_server(state: State<'_, ServerState>) -> Result<(), String> {
         
         #[cfg(windows)]
         {
-            // Send graceful shutdown via HTTP — the server's parent-pid watchdog
-            // will also handle cleanup if this app process exits.
-            println!("Sending graceful shutdown via HTTP...");
-            let client = reqwest::blocking::Client::builder()
-                .timeout(std::time::Duration::from_secs(2))
-                .build()
-                .unwrap();
+            // Send graceful shutdown via HTTP. This command runs on the async
+            // runtime, where reqwest::blocking panics ("Cannot drop a runtime
+            // in a context where blocking is not allowed"), so the request has
+            // to run on a blocking thread; otherwise /shutdown is never sent
+            // and the server survives every close.
+            let _ = tokio::task::spawn_blocking(move || {
+                println!("Sending graceful shutdown via HTTP...");
+                let client = reqwest::blocking::Client::builder()
+                    .timeout(std::time::Duration::from_secs(2))
+                    .build()
+                    .unwrap();
 
-            let _ = client
-                .post(&format!("http://127.0.0.1:{}/shutdown", SERVER_PORT))
-                .send();
+                let res = client
+                    .post(&format!("http://127.0.0.1:{}/shutdown", SERVER_PORT))
+                    .send();
 
-            println!("Shutdown request sent (server watchdog will handle cleanup)");
+                match res {
+                    Ok(_) => println!("Shutdown request sent"),
+                    Err(e) => {
+                        // Graceful HTTP shutdown failed; force-kill the server we own.
+                        // (The server-side watchdog fallback is broken on Windows too —
+                        // see RunEvent::Exit comment.)
+                        eprintln!("Shutdown request failed ({}), taskkill fallback", e);
+                        let _ = std::process::Command::new("taskkill")
+                            .args(["/PID", &pid.to_string(), "/T", "/F"])
+                            .output();
+                    }
+                }
+            }).await;
         }
     }
     
@@ -1506,6 +1526,23 @@ pub fn run() {
                                     .output();
                                 let _ = Command::new("kill")
                                     .args(["-9", &pid.to_string()])
+                                    .output();
+                            }
+                        }
+
+                        // Windows: the server-side parent-pid watchdog never starts
+                        // because backend/app.py passes a custom lifespan, which makes
+                        // server.py's @app.on_event("startup") a no-op. Force-kill the
+                        // server we own (pid is only stored for self-started or
+                        // voicebox-named servers, never external ones) so closing with
+                        // keep-running off always releases port 17493.
+                        #[cfg(windows)]
+                        {
+                            if let Some(pid) = state.server_pid.lock().unwrap().take() {
+                                use std::process::Command;
+                                println!("RunEvent::Exit - taskkill /PID {} /T /F", pid);
+                                let _ = Command::new("taskkill")
+                                    .args(["/PID", &pid.to_string(), "/T", "/F"])
                                     .output();
                             }
                         }
