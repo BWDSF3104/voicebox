@@ -1228,6 +1228,28 @@ async fn debug_clipboard_roundtrip(
     }))
 }
 
+/// Final step of the main-window close flow, after the frontend has had its
+/// chance to stop the server.
+///
+/// Windows: with "Keep server running" off, closing only the main window left
+/// the hidden dictate pill webview alive, so Tauri kept voicebox.exe and its
+/// WebView2 processes running with no UI — and the backend's parent-pid
+/// watchdog never fired, so voicebox-server.exe lingered and kept port
+/// 17493. Exit the app instead (RunEvent::Exit cleanup still runs). With
+/// keep-running on, the previous background behavior is kept so the global
+/// hotkey and MCP still work without the main window. macOS/Linux unchanged.
+fn finish_main_window_close(window: &tauri::Window) {
+    let keep_running = *window.state::<ServerState>().keep_running_on_close.lock().unwrap();
+    if cfg!(windows) && !keep_running {
+        if let Some(pill) = window.get_webview_window(DICTATE_WINDOW_LABEL) {
+            pill.destroy().ok();
+        }
+        window.app_handle().exit(0);
+    } else {
+        window.close().ok();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1394,7 +1416,7 @@ pub fn run() {
 
                 if let Err(e) = app_handle.emit("window-close-requested", ()) {
                     eprintln!("Failed to emit window-close-requested event: {}", e);
-                    window.close().ok();
+                    finish_main_window_close(window);
                     return;
                 }
 
@@ -1410,11 +1432,12 @@ pub fn run() {
                 tauri::async_runtime::spawn(async move {
                     tokio::select! {
                         _ = rx.recv() => {
-                            window_for_close.close().ok();
+                            println!("Frontend cleanup complete, closing");
+                            finish_main_window_close(&window_for_close);
                         }
                         _ = tokio::time::sleep(tokio::time::Duration::from_secs(5)) => {
                             eprintln!("Window close timeout, closing anyway");
-                            window_for_close.close().ok();
+                            finish_main_window_close(&window_for_close);
                         }
                     }
                     window_for_close.unlisten(listener_id);
