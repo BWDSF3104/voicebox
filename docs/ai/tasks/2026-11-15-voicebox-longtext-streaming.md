@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（CUDA sidecar再ビルド着手）
+**Status**: 進行中（CUDA sidecar再ビルド中）
 **Date**: 2026-11-15
-**Next Action**: venv(py3.12)+pip install 実行中→完了後 build_binary.py --cuda→backends\cuda 差し替え→インストール版で進捗表示・段階再生を実機確認
+**Next Action**: pip install（torch等）進行中→完了後 build_binary.py --cuda→backends\cuda 差し替え→インストール版で進捗表示・段階再生を実機確認
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -41,6 +41,27 @@
 - 段階再生中はチャンク間 crossfade なし（ハードカット）／effects chain は適用されない（完了後再生へ自然フォールバック）
 - spool wav は generations ディレクトリに残留（retry で上書き、増分は小さい。cleanup は未実装）
 - chunk ファイルの配信に DB チェックなし（UUID書式検証のみ。一時ファイル）
+
+## 追加検討（案D・案C・案B）2026-11-15 観測ベース
+
+### 案D: 日本語分割の改善（費用小・全案の品質基盤）
+実地テスト（`docs/ai/tmp/probe_jp_split.py`、日本語小説文2092字、vbtest-venvで実行）:
+- 800字上限では **文末「。」境界で正しく分割**（784/785/523字。日本語文末対応は生きている）
+- **末尾ミニチャンクの弱点**: 2000字指定で末尾 **109字の端数chunk** が単独生成される（文末境界優先のみでチャンク数最適化なし）
+- 改行（段落/場面転換）優先分割は無い。引用符「」内も普通に切る（TTS上は支障なし）
+改善案: ①末尾チャンクが小さい時（例250字未満）は前chunkと結合 or 平均再配置 ②改行優先の段落分割 ③`max_chunk_chars` は GenerationRequest に既存フィールド→フロントUI設定として露出可能（バックエンド改修なしで長文用2000字運用可）
+
+### 案C: 長文読本パイプライン（物語→聴く）（費用中・B非依存）
+観測: Stories は**実在する多トラック・クリップ編集機能**（`routes/stories.py`: timecode/reorder/trim/split/volume/**export mixed wav**、StoryItem.track あり、frontend `StoriesTab` + `useStoryPlayback` で連続再生も実装済み）。item=generation なので **itemごとに別profile（語り手/登場人物）の音声を当てられる**。
+欠けているのは入口だけ: 「長文テキスト取り込み→章/段落に分割→itemごとに生成ジョブ投入→storyへ自動追加」。実装は既存 `/generate` キュー（案A進捗付き）+ 既存 stories API の再利用で、**新しい推論経路は不要**。生成済みitemから章順に聴く/章単位リトライも既存部品で成立。
+
+### 案B: 真のストリーム出力（費用大・BはC/D後）
+観測: 8エンジン全て `generate()` で**音声を一括返す**バッチIF。ストリームIFは無い（kokoro内含まれず）。ただし qwen 系は公式 `qwen_tts` ライブラリ（Qwen3-TTS-12Hz 系、ストリーム合成設計持ち）— 検証要。
+実態: 案Aで「チャンク単位の疑似ストリーム（spool+順次再生）」は既にある。案Bの本体価値は**初回再生までの待ち時間をチャンク1個分(数十秒)→数秒**へ縮めること。
+選択肢: ①（低コスト・エンジン非依存）長文の**最初のチャンクだけ小さく**分割（例: 先頭200字→以降800字）— `max_chunk_chars` 拡張と案A spoolで即実現 ②qwen エンジン限定のエンジン級真ストリーム（PCMフラグメントyield）— IF追加+エンジン分岐で高コスト、効果は②のみ数秒以内
+
+### 実施順序案
+D（小修正）→ C（読本パイプライン、Aの進捗/段階再生がそのまま効く）→ B①（先頭chunk縮小、ほぼおまけ）→ B②（qwenストリーム、必要性を実測してから）
 
 ## 完了時 Memory Bank 操作
 
