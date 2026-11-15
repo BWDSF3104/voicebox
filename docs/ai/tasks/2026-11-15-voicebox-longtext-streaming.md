@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（flash-attn 込み sidecar デプロイ済み・ユーザー実機確認待ち）
+**Status**: 進行中（進捗沈黙の原因修正・cuda5 sidecarデプロイ済み・ユーザー実機確認待ち）
 **Date**: 2026-11-15
-**Next Action**: flash-attn 2.8.3（cu130 wheel）+ torch 2.11.0+cu130 導入 sidecar をデプロイ・起動検証済み（警告なし・Ready）。次: ユーザーが Voicebox で長文生成→生成速度（数十秒目安）・進捗表示(x/N・ETA)・段階再生・分割品質を実機確認→OKなら end＋アーカイブ
+**Next Action**: Voicebox再起動でcuda5 sidecar読込→長文生成で 1個目生成中から (0/2) 表示、完了ごとに (1/2)〜ETA・段階再生・分割品質・速度(~4分/chunk)を実機確認→OKなら end＋アーカイブ→案Cへ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -41,6 +41,14 @@
 - `build_binary.py --cuda`: `--collect-all nvidia.*` 追加で CUDA DLL 収集。所要 **18.4分**、成果物 **5.0GB**（`dist\voicebox-server-cuda`、`_internal\torch\lib\cublas64_12.dll` 確認）
 - デプロイ: 旧 `backends\cuda`（0.5.0）→ `cuda.bak-050` へリネーム保存、新ビルドを robocopy、`cuda-libs.json`（version cu128-v1）書き戻し
 - 本ビルドには案Dの分割改善（段落優先・端数再配置）も含む（`chunked_tts.py` 更新後に assemble 実行済み）
+
+### 進捗UIが沈黙する根本原因と修正（2026-11-16）
+- 診断（ファイルログ＋`docs\ai\tmp\vb-sse-repro.py`、REST側からSSE購読）: chunk 1/2 生成中の約5分間、SSEイベントが**全て `progress=None`**（480個）。`update_generation_progress` はチャンク**完了時**（`_on_chunk`）しか呼ばれず、生成中のフロントに `total` すら届かなかったのが原因。SSE接続・`start_generation` 登録・受信チェーンは全て正常と確認済み。ログに `status=... but no progress in task_manager for 30s` 警告も同一兆候。
+- 修正: `chunked_tts.generate_chunked` に `on_chunk_start(i,total)` 追加（各チャンク生成**開始直前**に発火）、`services/generation.py` が `update_generation_progress(id, i, total)` を登録し**1個目の生成開始前に total を公開**。`completed` は正直な完了数維持 → フロント無変更で 1個目生成中 `(0/2)` 表示、2個目以降に ETA 表示。
+- 検証: pytest **11/11**（新規 `test_on_chunk_start_fires_before_each_chunk`: 開始コールが当該チャンクの `backend.generate()` 前に発火すること）。変更2ファイル py_compile OK。生成実測はユーザー手動方針により未実施。
+- ビルド・デプロイ: cuda5 sidecar（所要16.8分、ログ永続化＋progress修正込み）を `backends\cuda` へデプロイ、直前版は `cuda.bak-logs-cu130` へ保存。素exe起動健全（既定 port 8000 で起動完了ログ確認。17999 は GUI 引数指定）。
+- commit `867fb43` fix: チャンク開始時にprogressを公開＋サーバーログファイル永続化（fork `fix/windows-quit`）。
+- 別記録: HF Hub オンライン確認リトライでモデルロードに約100秒浪費 → `known-issues/hf-hub-online-retries-slow-model-load.md`
 
 ## 設計上のトレードオフ（既知）
 
