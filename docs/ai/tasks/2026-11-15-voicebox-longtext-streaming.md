@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（cu128 sidecar デプロイ済み・ユーザー実機確認待ち）
+**Status**: 進行中（flash-attn 込み sidecar デプロイ済み・ユーザー実機確認待ち）
 **Date**: 2026-11-15
-**Next Action**: Voicebox 起動→ユーザーが長文生成で進捗表示(x/N・ETA)＋段階再生（LiveListen）を実機確認→OKなら end＋アーカイブ
+**Next Action**: flash-attn 2.8.3（cu130 wheel）+ torch 2.11.0+cu130 導入 sidecar をデプロイ・起動検証済み（警告なし・Ready）。次: ユーザーが Voicebox で長文生成→生成速度（数十秒目安）・進捗表示(x/N・ETA)・段階再生・分割品質を実機確認→OKなら end＋アーカイブ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
