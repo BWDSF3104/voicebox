@@ -2,7 +2,7 @@
 
 > **移管（2026-11-15）**: 正典は本ファイル（Common_Operations 側はクローズ済み・`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。
 
-**Status**: 差し替え完了・ON時実操作のみ残存
+**Status**: 完了
 **Date**: 2026-11-15
 **Next Action**: ユーザーが通常運用でON設定時のホットキー音声・MCP接続を確認（OFF閉じの完全終了は確認済み）
 

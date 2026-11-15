@@ -18,6 +18,7 @@ jamiepine/voicebox v0.5.0 のフォーク。ローカル修正（Windowsシャ�
 - **backend（Python）変更後**: `docs/ai/tmp/vbtest-venv` の python で `python -m pytest backend/tests/test_chunked_tts.py -v`。venv は numpy+pytest のみ。フルテストは torch 等の依存が入った venv が必要（未構築）
 - **app（TS）変更後**: `npx tsc -p app/tsconfig.json --noEmit`、変更ファイルのみ `npx @biomejs/biome check <files>`（既存の biome error 6件は baseline、`--write` を全ファイルにかけると import が再整形され diff が膨らむので注意）
 - **Rust（tauri/src-tauri）変更後**: `cd tauri/src-tauri && cargo check`。既存の keyboard_layout.rs 警告3件は baseline
+- **実モデルロード・生成を伴う実機検証はユーザーの手動実施**（エージェントは自動生成テストしない。VRAM 逼迫で不安定なため）: `docs/ai/decisions/2026-11-15-manual-generation-verification.md`
 
 ## Build / 開発（Windows・bun 無し環境の実測手順）
 
@@ -25,7 +26,8 @@ jamiepine/voicebox v0.5.0 のフォーク。ローカル修正（Windowsシャ�
   - **罠**: `cargo build --release` 直執行は tauri マクロが dev 扱いで devUrl（localhost:5173）を埋め込み webview が白画面になる。**必ず tauri CLI 経由**（debug の cargo build も同様）
 - `npm install` はリポジトリルート（workspace 一式）。tauri の vite は `app/node_modules` を参照するため、root の `node_modules` への **junction** が必要: `New-Item -ItemType Junction -Path app\node_modules -Target <root>\node_modules`
 - `bun` 未インストール（`bun.lock` 基準のリポジトリだが npm で通る。CI スクリプトの `bun run` 系は未使用）
-- **sidecar（voicebox-server.exe）再ビルド**: `backend/build_binary.py`（PyInstaller、CUDA は --onedir / CPU は --onefile）。torch 系の venv 構築込みで**30〜60分**（CUDA は1時間超の可能性）。`scripts/build-server.sh` は bash + `backend/venv` 前提
+- **sidecar（voicebox-server.exe）再ビルド**: `backend/build_binary.py`（PyInstaller、CUDA は --onedir / CPU は --onefile）。フル venv は `backend/venv`（py3.12、requirements.txt+pyinstaller 導入済み・2026-11-15 構築）。venv 済みのビルド実測 **8.2分**（CUDA onedir 1.4GB）。`scripts/build-server.sh` は bash 前提で Windows では使えない（requirements.txt は `PYTHONUTF8=1` 付きでないと pip が cp932 で読解失敗）
+  - **罠（GPU 無効化）**: Windows で `pip install torch` の既定（PyPI）wheel は **CPU 版**。CUDA sidecar には必ず `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128`。ビルド後の確認: `backend/venv/Lib/site-packages/torch/lib` に `cublas64_12.dll` 等があり、ビルド成果物 `_internal/torch/lib` にも同梱されていること（GPU 無効だと `gpu_available:false`・CPU で激遅）
 
 ## テストハーネス（docs/ai/tmp/ に常備）
 
@@ -36,8 +38,9 @@ jamiepine/voicebox v0.5.0 のフォーク。ローカル修正（Windowsシャ�
 
 ## 実機デプロイ状態
 
-- インストール版 `C:\Program Files\Voicebox\voicebox.exe` は 2026-11-15 差し替え済み（バックアップ `voicebox.exe.bak`）。sidecar は上流 0.5.0 のまま
-- 現在のインストール版は **Windows 修正のみ有効**。進捗表示・段階再生は新 backend（sidecar 再ビルド）が必要で、フロント側は旧 backend と後方互換（無表示で安全）を確認済み
+- インストール版 `C:\Program Files\Voicebox\voicebox.exe` は 2026-11-15 差し替え済み（バックアップ `voicebox.exe.bak`）＝ Windows 修正＋新フロント（進捗表示・段階再生 UI）入り
+- CUDA sidecar（`%APPDATA%\sh.voicebox.app\backends\cuda\`）は 2026-11-15 に fork ソースの再ビルド版へ差し替え済み（バックアップ `cuda.bak-20261115`）＝ 新 backend（進捗 SSE・チャンク spool）稼働中。CPU 版 sidecar（`C:\Program Files\Voicebox\voicebox-server.exe`）は上流 0.5.0 のまま（CUDA が主経路のため未更新）
+- 進捗表示・段階再生の UI 効果確認のみユーザー手動で残っている（2026-11-15）
 
 ## AI Memory Bank
 

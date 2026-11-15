@@ -1,8 +1,8 @@
 # 案D: 日本語長文チャンク分割の改善（端数結合・段落優先・UI設定露出）
 
-**Status**: 未着手
+**Status**: 実装完了（テストpass・実機は再ビルドsidecarで確認待ち）
 **Date**: 2026-11-15
-**Next Action**: backend/tests に端数結合のテスト追加→split_text_into_chunks 改善→フロントUIでmax_chunk_chars設定露出
+**Next Action**: split改善（段落優先＋端数結合0.4閾値）実装済み。UI露出は既存（GenerationPage）で追加不要。→ --cuda sidecar再ビルド（案D込み）で反映→ユーザー実機確認
 
 ## 意図 / 背景
 
@@ -13,11 +13,18 @@
 
 ## 調査結果 / 変更内容
 
-（着手時に記入。実装方針: 末尾チャンクがしきい値未満なら前チャンクと結合 or 平均再配置／改行を最優先境界に／長文用に `max_chunk_chars` をフロント設定として露出 — APIは GenerationRequest に既存フィールドのためバックエンド改修ほぼ不要）
+- `split_text_into_chunks` を書き換え（`backend/utils/chunked_tts.py`）:
+  - `_paragraphs()`: 改行を最優先境界に段落へ分ける。段落が収まるうち Current chunk へ詰め込む（pack）。
+  - `_split_sentences()`: 既存の文末境界ロジックを段落内に適用（改行なし長文の後方互換）。
+  - `_fix_small_tail()` + `_rebalance_cut()`: 末尾が `max_chars` の `MIN_TAIL_RATIO=0.4` 未満なら前チャンクへ結合し、超过分を文境界で中央再配置（実測観測の末尾109字ミニチャンクを解消）。
+  - `_join_sep()`: 結合時の区切りは ASCII 同士のみ空白、CJK は無区切り。
+- フロント UI 露出は**既存**で追加不要と確認: `GenerationPage.tsx` に `maxChunkChars` スライダー（settings 永続化）、`useGenerationForm.ts` が generate へ `max_chunk_chars` を渡している。
 
 ## Verification
 
-（未実施。予定: split_text_into_chunks のテストを backend/tests に追加（端数結合・段落優先・日本語/英語混在）、`vbtest-venv` で pytest）
+- `vbtest-venv` で `python -m pytest backend/tests/test_chunked_tts.py -v` → **10 passed**（新規6: 段落優先/詰め込み/日本語端数再配置/ASCII末尾/区切り文字/既存4。0.24s、2026-11-15）
+- テスト実行 venv: `S:\Documents\Kilo_Commons\Common_Operations\docs\ai\tmp\vbtest-venv`（voicebox 側には無い）
+- 実機（sidecar 生成品質）は cu128 ビルド（案D込み・2026-11-15 13:00Z デプロイ済み）でユーザー確認待ち
 
 ## 完了時 Memory Bank 操作
 

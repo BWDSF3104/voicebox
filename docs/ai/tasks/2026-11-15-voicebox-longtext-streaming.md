@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（CUDA sidecar再ビルド中）
+**Status**: 進行中（cu128 sidecar デプロイ済み・ユーザー実機確認待ち）
 **Date**: 2026-11-15
-**Next Action**: pip install（torch等）進行中→完了後 build_binary.py --cuda→backends\cuda 差し替え→インストール版で進捗表示・段階再生を実機確認
+**Next Action**: Voicebox 起動→ユーザーが長文生成で進捗表示(x/N・ETA)＋段階再生（LiveListen）を実機確認→OKなら end＋アーカイブ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -34,7 +34,13 @@
 - backend 変更5ファイル `py_compile` pass
 - frontend `tsc -p app/tsconfig.json --noEmit` clean、biome 新規指摘なし（既存6件は baseline）
 - 互換性（実機）: 変更フロント埋め込みの release exe をインストール版バックエンド（旧・progress非送信）で起動 → UI正常表示、クローズで全終了 PASS・WEBVIEW2_CLEAN。**progress 未送信時は無表示で安全**（想定後方互換）
-- **未確認**: 進捗実表示・spool 段階再生の実動作 — voicebox-server.exe（PyInstaller 513MB）が旧 backend のため。新 backend の効果確認には sidecar 再ビルド（torch環境必要）または dev モード（uvicorn backend + tauri dev）が必要
+- **未確認**: 進捗実表示・spool 段階再生の実動作 — ユーザー実機確認待ち（方針: 生成系検証は手動、`decisions/2026-11-15-manual-generation-verification.md`）
+
+### cu128 sidecar 再ビルド（2026-11-15 完了）
+- 根本原因: venv の torch が PyPI 既定の CPU 版 → `pip install torch torchaudio --index-url .../whl/cu128` で `2.11.0+cu128`・`cuda.is_available()=True`（RTX 3090）へ。`PYTHONUTF8=1` 必須（日本語ロケール cp932 エラー回避）
+- `build_binary.py --cuda`: `--collect-all nvidia.*` 追加で CUDA DLL 収集。所要 **18.4分**、成果物 **5.0GB**（`dist\voicebox-server-cuda`、`_internal\torch\lib\cublas64_12.dll` 確認）
+- デプロイ: 旧 `backends\cuda`（0.5.0）→ `cuda.bak-050` へリネーム保存、新ビルドを robocopy、`cuda-libs.json`（version cu128-v1）書き戻し
+- 本ビルドには案Dの分割改善（段落優先・端数再配置）も含む（`chunked_tts.py` 更新後に assemble 実行済み）
 
 ## 設計上のトレードオフ（既知）
 

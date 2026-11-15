@@ -58,11 +58,20 @@ _ABBREVIATIONS = frozenset(
 _PARA_TAG_RE = re.compile(r"\[[^\]]*\]")
 
 
+# A trailing chunk shorter than this fraction of *max_chars* is rebalanced
+# with the previous chunk instead of becoming a standalone mini-generation.
+MIN_TAIL_RATIO = 0.4
+
+
 def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) -> List[str]:
     """Split *text* at natural boundaries into chunks of at most *max_chars*.
 
-    Priority: sentence-end (``.!?`` not preceded by an abbreviation and not
-    inside brackets) → clause boundary (``;:,—``) → whitespace → hard cut.
+    Priority: paragraph (newline) boundary → sentence-end (``.!?`` not
+    preceded by an abbreviation and not inside brackets) → clause boundary
+    (``;:,—``) → whitespace → hard cut.  Small paragraphs are packed into
+    the current chunk; a trailing chunk below ``MIN_TAIL_RATIO`` of
+    *max_chars* is merged with the previous one (or split in two near the
+    centre when the merge would overflow).
 
     Paralinguistic tags like ``[laugh]`` are treated as atomic and will not
     be split across chunks.
@@ -74,7 +83,25 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
         return [text]
 
     chunks: List[str] = []
-    remaining = text
+    for para in _paragraphs(text):
+        if len(para) > max_chars:
+            chunks.extend(_split_sentences(para, max_chars))
+        elif chunks and len(chunks[-1]) + 1 + len(para) <= max_chars:
+            chunks[-1] = chunks[-1] + "\n" + para
+        else:
+            chunks.append(para)
+
+    return _fix_small_tail(chunks, max_chars)
+
+
+def _paragraphs(text: str) -> List[str]:
+    """Split on newlines, dropping blank lines."""
+    return [p.strip() for p in text.splitlines() if p.strip()]
+
+
+def _split_sentences(remaining: str, max_chars: int) -> List[str]:
+    """Split one oversized paragraph at sentence/clause boundaries."""
+    chunks: List[str] = []
 
     while remaining:
         remaining = remaining.lstrip()
@@ -102,6 +129,62 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
         remaining = remaining[split_pos + 1 :]
 
     return chunks
+
+
+def _fix_small_tail(chunks: List[str], max_chars: int) -> List[str]:
+    """Merge/rebalance a trailing chunk that is too small to be worth
+    a standalone generation call."""
+    if len(chunks) < 2:
+        return chunks
+    min_tail = max(int(max_chars * MIN_TAIL_RATIO), 1)
+    last, prev = chunks.pop(), chunks.pop()
+    if len(last) >= min_tail:
+        chunks.extend([prev, last])
+        return chunks
+
+    merged = prev + _join_sep(prev, last) + last
+    if len(merged) <= max_chars:
+        chunks.append(merged)
+        return chunks
+
+    # Rebalance: one split near the centre at the nearest sentence end
+    cut = _rebalance_cut(merged, max_chars, min_tail)
+    first, second = merged[:cut].strip(), merged[cut:].strip()
+    if first and second:
+        chunks.extend([first, second])
+    else:
+        chunks.append(merged)
+    return chunks
+
+
+def _join_sep(prev: str, last: str) -> str:
+    """Separator when re-joining two chunks: a space when both sides are
+    ASCII (Latin text spaces around punctuation), nothing for CJK."""
+    a, b = prev[-1] if prev else "", last[0] if last else ""
+    if a.isascii() and b.isascii():
+        return " "
+    return ""
+
+
+def _rebalance_cut(text: str, max_chars: int, min_tail: int) -> int:
+    """Index to split *text* into two roughly equal parts, preferring
+    sentence-ending punctuation near the midpoint."""
+    target = len(text) // 2
+    best = -1
+    best_dist = None
+    for m in re.finditer(r"[.!?](?:\s|$)|[\u3002\uff01\uff1f]", text[:max_chars]):
+        pos = m.end()
+        if pos < min_tail:
+            continue
+        dist = abs(pos - target)
+        if best == -1 or dist < best_dist:
+            best, best_dist = pos, dist
+    if best == -1:
+        pos = text.rfind(" ", 0, max_chars)
+        if pos > 0:
+            return pos
+        return target
+    return best
 
 
 def _find_last_sentence_end(text: str) -> int:

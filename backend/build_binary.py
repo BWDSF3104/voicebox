@@ -329,6 +329,35 @@ def build_server(cuda=False):
                 "torch.cuda",
                 "--hidden-import",
                 "torch.backends.cudnn",
+                # nvidia CUDA ライブラリ（cublas/cudnn 等）を明示収集。
+                # Windows の torch cu128 wheel は torch/lib に同梱するが、
+                # 分離配布（Linux 等・nvidia パッケージ）の収集漏れ対策。
+                "--collect-all",
+                "nvidia",
+                "--collect-all",
+                "nvidia.cublas",
+                "--collect-all",
+                "nvidia.cudnn",
+                "--collect-all",
+                "nvidia.cufft",
+                "--collect-all",
+                "nvidia.cusolver",
+                "--collect-all",
+                "nvidia.cusparse",
+                "--collect-all",
+                "nvidia.curand",
+                "--collect-all",
+                "nvidia.cuda_runtime",
+                "--collect-all",
+                "nvidia.cuda_nvrtc",
+                "--collect-all",
+                "nvidia.cuda_cupti",
+                "--collect-all",
+                "nvidia.nccl",
+                "--collect-all",
+                "nvidia.nvjitlink",
+                "--collect-all",
+                "nvidia.nvtx",
             ]
         )
     else:
