@@ -33,7 +33,8 @@ PROGRESS_KEY = "cuda-backend"
 
 # The current expected CUDA libs version.  Bump this when we change the
 # CUDA toolkit version or torch's CUDA dependency changes (e.g. cu126 -> cu128).
-CUDA_LIBS_VERSION = "cu128-v1"
+# fork: local --cuda builds now ship torch cu130 + flash-attn (see requirements.txt).
+CUDA_LIBS_VERSION = "cu130-v1"
 
 # Prevents concurrent download_cuda_binary() calls from racing on the same
 # temp file.  The auto-update background task and the manual HTTP endpoint
