@@ -99,6 +99,34 @@ def disable_watchdog():
         signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
 
+def _attach_file_logging(data_dir):
+    """Mirror all logging to {data_dir}/logs/backend.log.
+
+    The frozen sidecar otherwise only logs to stderr, which the Tauri host
+    shows in devtools but does not persist — making post-hoc diagnosis of
+    generation/progress issues impossible. Rotating to keep disk use bounded.
+    """
+    import os
+    from logging.handlers import RotatingFileHandler
+
+    try:
+        log_dir = os.path.join(data_dir, "logs")
+        os.makedirs(log_dir, exist_ok=True)
+        handler = RotatingFileHandler(
+            os.path.join(log_dir, "backend.log"),
+            maxBytes=5_000_000,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        logging.getLogger().addHandler(handler)
+        logger.info(f"File logging attached: {os.path.join(log_dir, 'backend.log')}")
+    except Exception as e:
+        logger.warning(f"Could not attach file logging: {e}")
+
+
 def _start_parent_watchdog(parent_pid, data_dir=None):
     """Monitor parent process and exit if it dies.
 
@@ -285,6 +313,7 @@ if __name__ == "__main__":
         if args.data_dir:
             logger.info(f"Setting data directory to: {args.data_dir}")
             config.set_data_dir(args.data_dir)
+            _attach_file_logging(args.data_dir)
 
         # Initialize database after data directory is set
         logger.info("Initializing database...")

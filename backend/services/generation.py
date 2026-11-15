@@ -96,8 +96,21 @@ async def run_generation(
             chunk_dir = config.get_generations_dir()
             chunk_dir.mkdir(parents=True, exist_ok=True)
 
+        def _on_chunk_start(index: int, total: int) -> None:
+            # Publish total (and current chunk) before the first chunk is
+            # done, otherwise the UI shows nothing for minutes of generation.
+            task_manager.update_generation_progress(generation_id, index, total)
+            logger.info("Progress %s: chunk %d/%d started", generation_id, index + 1, total)
+
         def _on_chunk(index: int, total: int, chunk_audio, chunk_sr: int) -> None:
             task_manager.update_generation_progress(generation_id, index + 1, total)
+            logger.info(
+                "Progress %s: chunk %d/%d done (spool=%s)",
+                generation_id,
+                index + 1,
+                total,
+                "on" if chunk_dir is not None else "off (effects chain)",
+            )
             if chunk_dir is None or total <= 1:
                 return
             try:
@@ -106,11 +119,13 @@ async def run_generation(
                     str(chunk_dir / f"{generation_id}_chunk_{index}.wav"),
                     chunk_sr,
                 )
+                logger.info("Spooled chunk audio %s_chunk_%d.wav", generation_id, index)
             except Exception:
                 # Spooling is best-effort; final audio still gets saved later.
                 logger.warning("Chunk spool failed for %s chunk %d", generation_id, index, exc_info=True)
 
         gen_kwargs["on_chunk"] = _on_chunk
+        gen_kwargs["on_chunk_start"] = _on_chunk_start
         audio, sample_rate = await generate_chunked(tts_model, text, voice_prompt, **gen_kwargs)
 
         # --- Normalize (generate and regenerate always; retry skips) -----

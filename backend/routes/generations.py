@@ -278,11 +278,15 @@ async def get_generation_status(generation_id: str, db: Session = Depends(get_db
     import json
 
     async def event_stream():
+        logger.info("SSE status stream opened for %s", generation_id)
+        last_logged = None
+        polls_without_progress = 0
         try:
             while True:
                 db.expire_all()
                 gen = db.query(DBGeneration).filter_by(id=generation_id).first()
                 if not gen:
+                    logger.warning("SSE %s: generation row not found, closing", generation_id)
                     yield f"data: {json.dumps({'status': 'not_found', 'id': generation_id})}\n\n"
                     return
 
@@ -298,14 +302,39 @@ async def get_generation_status(generation_id: str, db: Session = Depends(get_db
                 progress = get_task_manager().get_generation_progress(generation_id)
                 if progress:
                     payload["progress"] = progress
+                    polls_without_progress = 0
+                    state = (gen.status, progress["completed"], progress["total"])
+                    if state != last_logged:
+                        logger.info(
+                            "SSE %s: status=%s progress=%d/%d",
+                            generation_id,
+                            gen.status,
+                            progress["completed"],
+                            progress["total"],
+                        )
+                        last_logged = state
+                elif (gen.status or "") not in ("completed", "failed"):
+                    polls_without_progress += 1
+                    # After 30s of in-progress polling with no progress visible
+                    # to SSE, the worker's task_manager update is not landing —
+                    # surface it once so diagnosis does not need user reports.
+                    if polls_without_progress == 30:
+                        logger.warning(
+                            "SSE %s: status=%s but no progress in task_manager for 30s",
+                            generation_id,
+                            gen.status,
+                        )
                 yield f"data: {json.dumps(payload)}\n\n"
 
                 if (gen.status or "completed") in ("completed", "failed"):
+                    logger.info(
+                        "SSE %s: terminal status '%s', closing", generation_id, gen.status
+                    )
                     return
 
                 await asyncio.sleep(1)
-        except (BrokenPipeError, ConnectionResetError, asyncio.CancelledError):
-            logger.debug("SSE client disconnected for generation %s", generation_id)
+        except (BrokenPipeError, ConnectionResetError, asyncio.CancelledError) as e:
+            logger.info("SSE %s: client disconnected (%s)", generation_id, type(e).__name__)
 
     return StreamingResponse(
         event_stream(),

@@ -37,6 +37,29 @@ def test_on_chunk_called_per_chunk_in_order():
     assert audio.ndim == 1 and sr == backend.sample_rate
 
 
+def test_on_chunk_start_fires_before_each_chunk():
+    # Regression: progress stayed None until a chunk finished, so the UI
+    # showed nothing during multi-minute chunk generation.
+    long_text = ("This is a test sentence. " * 40) + "End."
+    backend = MockBackend()
+    starts = []
+    asyncio.run(
+        generate_chunked(
+            backend,
+            long_text,
+            {},
+            max_chunk_chars=800,
+            on_chunk_start=lambda i, t: starts.append((i, t, backend.calls)),
+        )
+    )
+    assert len(starts) > 1
+    assert [i for i, _, _ in starts] == list(range(len(starts)))
+    assert {t for _, t, _ in starts} == {len(starts)}
+    # Fired before this chunk's backend.generate() had run.
+    assert [c for _, _, c in starts] == list(range(len(starts)))
+
+
+
 def test_on_chunk_fast_path_single_chunk():
     backend = MockBackend()
     seen = []

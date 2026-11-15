@@ -295,6 +295,7 @@ async def generate_chunked(
     crossfade_ms: int = 50,
     trim_fn=None,
     on_chunk=None,
+    on_chunk_start=None,
 ) -> Tuple[np.ndarray, int]:
     """Generate audio with automatic chunking for long text.
 
@@ -329,6 +330,10 @@ async def generate_chunked(
         is generated and trimmed. Used to surface long-text progress; raising
         propagates to the caller — wrap in your own try/except if it must not
         abort generation.
+    on_chunk_start : callable | None
+        Optional synchronous ``(index, total)`` callback invoked right before
+        each chunk starts generating.  Reports progress while a chunk is still
+        in flight — the UI would otherwise show nothing for minutes.
 
     Returns
     -------
@@ -368,6 +373,8 @@ async def generate_chunked(
             len(chunks),
             len(chunk_text),
         )
+        if on_chunk_start is not None:
+            on_chunk_start(i, len(chunks))
         # Vary the seed per chunk to avoid correlated RNG artefacts,
         # but keep it deterministic so the same (text, seed) pair
         # always produces the same output.
