@@ -387,6 +387,11 @@ class ApiClient {
     return `${this.getBaseUrl()}/audio/${audioId}`;
   }
 
+  // Spooled chunk of an in-progress long-text generation (incremental listen)
+  getGenerationChunkUrl(generationId: string, index: number): string {
+    return `${this.getBaseUrl()}/audio/${generationId}/chunk/${index}`;
+  }
+
   getSampleUrl(sampleId: string): string {
     return `${this.getBaseUrl()}/samples/${sampleId}`;
   }

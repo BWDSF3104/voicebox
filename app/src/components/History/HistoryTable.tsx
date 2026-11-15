@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AudioBars } from '@/components/AudioBars';
 import { EffectsChainEditor } from '@/components/Effects/EffectsChainEditor';
+import { LiveListenButton } from '@/components/History/LiveListenButton';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -538,9 +539,19 @@ export function HistoryTable() {
                   >
                     {/* Status icon */}
                     <div className="flex items-center shrink-0 w-10 justify-center overflow-hidden">
-                      <AudioBars
-                        mode={isGenerating ? 'generating' : isCurrentlyPlaying ? 'playing' : 'idle'}
-                      />
+                      {isGenerating && prog && prog.completed >= 1 ? (
+                        <LiveListenButton
+                          generationId={gen.id}
+                          total={prog.total}
+                          generating={isInProgress}
+                        />
+                      ) : (
+                        <AudioBars
+                          mode={
+                            isGenerating ? 'generating' : isCurrentlyPlaying ? 'playing' : 'idle'
+                          }
+                        />
+                      )}
                     </div>
 
                     {/* Left side - Meta information */}

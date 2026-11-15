@@ -14,12 +14,16 @@ interface GenerationState {
   isGenerating: boolean;
   /** Chunk progress (long text) for in-flight generations; cleared on finish */
   generationProgress: Record<string, GenerationProgress>;
+  /** Generations whose incremental (chunk) playback is active; suppresses completion autoplay */
+  livePlaybackIds: Set<string>;
   /** Map of generationId → storyId for deferred story additions */
   pendingStoryAdds: Map<string, string>;
   addPendingGeneration: (id: string) => void;
   removePendingGeneration: (id: string) => void;
   setGenerationProgress: (id: string, completed: number, total: number) => void;
   clearGenerationProgress: (id: string) => void;
+  addLivePlayback: (id: string) => void;
+  removeLivePlayback: (id: string) => void;
   addPendingStoryAdd: (generationId: string, storyId: string) => void;
   removePendingStoryAdd: (generationId: string) => string | undefined;
   setActiveGenerationId: (id: string | null) => void;
@@ -31,15 +35,20 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   isGenerating: false,
   activeGenerationId: null,
   generationProgress: {},
+  livePlaybackIds: new Set(),
   pendingStoryAdds: new Map(),
 
   addPendingGeneration: (id) =>
     set((state) => {
       const next = new Set(state.pendingGenerationIds);
       next.add(id);
-      const progress = id in state.generationProgress
-        ? state.generationProgress
-        : { ...state.generationProgress, [id]: { completed: 0, total: 0, startedAt: Date.now() } };
+      const progress =
+        id in state.generationProgress
+          ? state.generationProgress
+          : {
+              ...state.generationProgress,
+              [id]: { completed: 0, total: 0, startedAt: Date.now() },
+            };
       return { pendingGenerationIds: next, isGenerating: true, generationProgress: progress };
     }),
 
@@ -48,7 +57,11 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       const next = new Set(state.pendingGenerationIds);
       next.delete(id);
       const { [id]: _removed, ...progress } = state.generationProgress;
-      return { pendingGenerationIds: next, isGenerating: next.size > 0, generationProgress: progress };
+      return {
+        pendingGenerationIds: next,
+        isGenerating: next.size > 0,
+        generationProgress: progress,
+      };
     }),
 
   setGenerationProgress: (id, completed, total) =>
@@ -68,6 +81,21 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       if (!(id in state.generationProgress)) return state;
       const { [id]: _removed, ...progress } = state.generationProgress;
       return { generationProgress: progress };
+    }),
+
+  addLivePlayback: (id) =>
+    set((state) => {
+      const next = new Set(state.livePlaybackIds);
+      next.add(id);
+      return { livePlaybackIds: next };
+    }),
+
+  removeLivePlayback: (id) =>
+    set((state) => {
+      if (!state.livePlaybackIds.has(id)) return state;
+      const next = new Set(state.livePlaybackIds);
+      next.delete(id);
+      return { livePlaybackIds: next };
     }),
 
   addPendingStoryAdd: (generationId, storyId) =>

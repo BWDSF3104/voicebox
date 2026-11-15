@@ -125,7 +125,10 @@ export function useGenerationProgress() {
             // Skip agent-initiated sources — the floating pill window
             // plays those itself.
             const isAgentSpeak = data.source ? AGENT_SOURCES.has(data.source) : false;
-            if (autoplayRef.current && !isPlayingRef.current && !isAgentSpeak) {
+            // Incremental chunk playback (if started) already moves on to the
+            // final audio itself — skip main-player autoplay to avoid doubling.
+            const isLivePlaying = useGenerationStore.getState().livePlaybackIds.has(id);
+            if (autoplayRef.current && !isPlayingRef.current && !isAgentSpeak && !isLivePlaying) {
               const genAudioUrl = apiClient.getAudioUrl(id);
               setAudioWithAutoPlay(genAudioUrl, id, '', '');
             }
