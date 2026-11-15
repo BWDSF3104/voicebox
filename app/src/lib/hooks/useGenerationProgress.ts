@@ -12,6 +12,7 @@ interface GenerationStatusEvent {
   duration?: number;
   error?: string;
   source?: string;
+  progress?: { completed: number; total: number };
 }
 
 // Agent-initiated generations are played by the floating pill, not the
@@ -28,6 +29,7 @@ export function useGenerationProgress() {
   const { toast } = useToast();
   const pendingIds = useGenerationStore((s) => s.pendingGenerationIds);
   const removePendingGeneration = useGenerationStore((s) => s.removePendingGeneration);
+  const setGenerationProgress = useGenerationStore((s) => s.setGenerationProgress);
   const removePendingStoryAdd = useGenerationStore((s) => s.removePendingStoryAdd);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const setAudioWithAutoPlay = usePlayerStore((s) => s.setAudioWithAutoPlay);
@@ -75,6 +77,10 @@ export function useGenerationProgress() {
       source.onmessage = (event) => {
         try {
           const data: GenerationStatusEvent = JSON.parse(event.data);
+
+          if (data.progress) {
+            setGenerationProgress(id, data.progress.completed, data.progress.total);
+          }
 
           if (data.status === 'completed') {
             source.close();
@@ -156,6 +162,7 @@ export function useGenerationProgress() {
   }, [
     pendingIds,
     removePendingGeneration,
+    setGenerationProgress,
     removePendingStoryAdd,
     queryClient,
     toast,

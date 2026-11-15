@@ -1,6 +1,7 @@
 """Audio file serving endpoints."""
 
 import mimetypes
+import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,26 @@ async def get_version_audio(version_id: str, db: Session = Depends(get_db)):
         media_type=_audio_media_type(audio_path),
         filename=f"generation_{version.generation_id}_{version.label}{audio_path.suffix}",
     )
+
+
+@router.get("/audio/{generation_id}/chunk/{index}")
+async def get_generation_chunk(generation_id: str, index: int):
+    """Serve one spooled chunk of an in-progress long-text generation.
+
+    Best-effort temp files written while the generation runs; 404 once the
+    final audio exists and consumers switch to ``/audio/{generation_id}``.
+    """
+    try:
+        uuid.UUID(generation_id)  # path-traversal guard; ids are UUIDs
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Generation not found")
+    if index < 0:
+        raise HTTPException(status_code=404, detail="Chunk not found")
+
+    chunk_path = config.get_generations_dir() / f"{generation_id}_chunk_{index}.wav"
+    if not chunk_path.is_file():
+        raise HTTPException(status_code=404, detail="Chunk not found")
+    return FileResponse(chunk_path, media_type="audio/wav")
 
 
 @router.get("/audio/{generation_id}")

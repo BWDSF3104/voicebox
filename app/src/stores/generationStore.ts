@@ -1,14 +1,25 @@
 import { create } from 'zustand';
 
+export interface GenerationProgress {
+  completed: number;
+  total: number;
+  /** epoch ms when the generation became pending; for client-side ETA */
+  startedAt: number;
+}
+
 interface GenerationState {
   /** IDs of generations currently in progress */
   pendingGenerationIds: Set<string>;
   /** Whether any generation is in progress (derived from pendingGenerationIds) */
   isGenerating: boolean;
+  /** Chunk progress (long text) for in-flight generations; cleared on finish */
+  generationProgress: Record<string, GenerationProgress>;
   /** Map of generationId → storyId for deferred story additions */
   pendingStoryAdds: Map<string, string>;
   addPendingGeneration: (id: string) => void;
   removePendingGeneration: (id: string) => void;
+  setGenerationProgress: (id: string, completed: number, total: number) => void;
+  clearGenerationProgress: (id: string) => void;
   addPendingStoryAdd: (generationId: string, storyId: string) => void;
   removePendingStoryAdd: (generationId: string) => string | undefined;
   setActiveGenerationId: (id: string | null) => void;
@@ -19,20 +30,44 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   pendingGenerationIds: new Set(),
   isGenerating: false,
   activeGenerationId: null,
+  generationProgress: {},
   pendingStoryAdds: new Map(),
 
   addPendingGeneration: (id) =>
     set((state) => {
       const next = new Set(state.pendingGenerationIds);
       next.add(id);
-      return { pendingGenerationIds: next, isGenerating: true };
+      const progress = id in state.generationProgress
+        ? state.generationProgress
+        : { ...state.generationProgress, [id]: { completed: 0, total: 0, startedAt: Date.now() } };
+      return { pendingGenerationIds: next, isGenerating: true, generationProgress: progress };
     }),
 
   removePendingGeneration: (id) =>
     set((state) => {
       const next = new Set(state.pendingGenerationIds);
       next.delete(id);
-      return { pendingGenerationIds: next, isGenerating: next.size > 0 };
+      const { [id]: _removed, ...progress } = state.generationProgress;
+      return { pendingGenerationIds: next, isGenerating: next.size > 0, generationProgress: progress };
+    }),
+
+  setGenerationProgress: (id, completed, total) =>
+    set((state) => ({
+      generationProgress: {
+        ...state.generationProgress,
+        [id]: {
+          completed,
+          total,
+          startedAt: state.generationProgress[id]?.startedAt ?? Date.now(),
+        },
+      },
+    })),
+
+  clearGenerationProgress: (id) =>
+    set((state) => {
+      if (!(id in state.generationProgress)) return state;
+      const { [id]: _removed, ...progress } = state.generationProgress;
+      return { generationProgress: progress };
     }),
 
   addPendingStoryAdd: (generationId, storyId) =>

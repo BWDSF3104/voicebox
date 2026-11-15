@@ -23,6 +23,9 @@ class GenerationTask:
     profile_id: str
     text_preview: str  # First 50 chars of text
     started_at: datetime = field(default_factory=datetime.utcnow)
+    # Chunked long-text progress; total is 0 until the split is known.
+    completed_chunks: int = 0
+    total_chunks: int = 0
 
 
 class TaskManager:
@@ -63,6 +66,21 @@ class TaskManager:
         """Mark a generation as complete."""
         if task_id in self._active_generations:
             del self._active_generations[task_id]
+
+    def update_generation_progress(self, task_id: str, completed: int, total: int) -> None:
+        """Update chunk progress for an active generation (in-memory, no DB)."""
+        task = self._active_generations.get(task_id)
+        if task is None:
+            return
+        task.completed_chunks = completed
+        task.total_chunks = total
+
+    def get_generation_progress(self, task_id: str) -> Optional[Dict[str, int]]:
+        """Return {completed, total} while active; None once finished or total unknown."""
+        task = self._active_generations.get(task_id)
+        if task is None or task.total_chunks <= 0:
+            return None
+        return {"completed": task.completed_chunks, "total": task.total_chunks}
     
     def get_active_downloads(self) -> List[DownloadTask]:
         """Get all active downloads."""

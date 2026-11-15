@@ -295,6 +295,9 @@ async def get_generation_status(generation_id: str, db: Session = Depends(get_db
                     # autoplay — the floating pill plays those directly.
                     "source": gen.source,
                 }
+                progress = get_task_manager().get_generation_progress(generation_id)
+                if progress:
+                    payload["progress"] = progress
                 yield f"data: {json.dumps(payload)}\n\n"
 
                 if (gen.status or "completed") in ("completed", "failed"):

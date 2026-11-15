@@ -17,6 +17,7 @@ Mode differences:
 from __future__ import annotations
 
 import asyncio
+import logging
 import traceback
 from typing import Literal, Optional
 
@@ -24,6 +25,8 @@ from .. import config
 from . import history, profiles
 from ..database import get_db
 from ..utils.tasks import get_task_manager
+
+logger = logging.getLogger(__name__)
 
 
 async def run_generation(
@@ -84,6 +87,30 @@ async def run_generation(
         if crossfade_ms is not None:
             gen_kwargs["crossfade_ms"] = crossfade_ms
 
+        # Long-text progress + per-chunk spool for incremental playback.
+        # effects_chain is applied after concatenation, so chunk spools would
+        # bypass it — keep progress reporting only and let those play when done.
+        spool_enabled = not effects_chain
+        chunk_dir = None
+        if spool_enabled:
+            chunk_dir = config.get_generations_dir()
+            chunk_dir.mkdir(parents=True, exist_ok=True)
+
+        def _on_chunk(index: int, total: int, chunk_audio, chunk_sr: int) -> None:
+            task_manager.update_generation_progress(generation_id, index + 1, total)
+            if chunk_dir is None or total <= 1:
+                return
+            try:
+                save_audio(
+                    chunk_audio,
+                    str(chunk_dir / f"{generation_id}_chunk_{index}.wav"),
+                    chunk_sr,
+                )
+            except Exception:
+                # Spooling is best-effort; final audio still gets saved later.
+                logger.warning("Chunk spool failed for %s chunk %d", generation_id, index, exc_info=True)
+
+        gen_kwargs["on_chunk"] = _on_chunk
         audio, sample_rate = await generate_chunked(tts_model, text, voice_prompt, **gen_kwargs)
 
         # --- Normalize (generate and regenerate always; retry skips) -----

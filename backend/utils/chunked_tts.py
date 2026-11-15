@@ -211,6 +211,7 @@ async def generate_chunked(
     max_chunk_chars: int = DEFAULT_MAX_CHUNK_CHARS,
     crossfade_ms: int = 50,
     trim_fn=None,
+    on_chunk=None,
 ) -> Tuple[np.ndarray, int]:
     """Generate audio with automatic chunking for long text.
 
@@ -239,6 +240,12 @@ async def generate_chunked(
         Optional ``(audio, sample_rate) -> audio`` post-processing
         function applied to each chunk before concatenation (e.g.
         ``trim_tts_output`` for Chatterbox engines).
+    on_chunk : callable | None
+        Optional synchronous ``(index, total, audio, sample_rate)`` callback
+        invoked right after each chunk (including the single-chunk fast path)
+        is generated and trimmed. Used to surface long-text progress; raising
+        propagates to the caller — wrap in your own try/except if it must not
+        abort generation.
 
     Returns
     -------
@@ -257,6 +264,8 @@ async def generate_chunked(
         )
         if trim_fn is not None:
             audio = trim_fn(audio, sample_rate)
+        if on_chunk is not None:
+            on_chunk(0, 1, audio, sample_rate)
         return audio, sample_rate
 
     # Long text — chunked generation
@@ -294,6 +303,9 @@ async def generate_chunked(
         audio_chunks.append(np.asarray(chunk_audio, dtype=np.float32))
         if sample_rate is None:
             sample_rate = chunk_sr
+
+        if on_chunk is not None:
+            on_chunk(i, len(chunks), chunk_audio, chunk_sr)
 
     audio = concatenate_audio_chunks(audio_chunks, sample_rate, crossfade_ms=crossfade_ms)
     return audio, sample_rate

@@ -58,6 +58,13 @@ import { formatDate, formatDuration, formatEngineName } from '@/lib/utils/format
 import { useGenerationStore } from '@/stores/generationStore';
 import { usePlayerStore } from '@/stores/playerStore';
 
+function formatEta(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)}s`;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return s > 0 ? `${m}m${s}s` : `${m}m`;
+}
+
 export function HistoryTable() {
   const { t } = useTranslation();
   const [page, setPage] = useState(0);
@@ -146,6 +153,7 @@ export function HistoryTable() {
 
   // Reset to page 0 when deletions, imports, or generation completions occur
   const pendingCount = useGenerationStore((state) => state.pendingGenerationIds.size);
+  const generationProgress = useGenerationStore((state) => state.generationProgress);
   const prevPendingCountRef = useRef(pendingCount);
   useEffect(() => {
     if (deleteGeneration.isSuccess || importGeneration.isSuccess || clearFailed.isSuccess) {
@@ -473,6 +481,17 @@ export function HistoryTable() {
               const isVersionsExpanded = expandedVersionsId === gen.id;
               const isCancelling =
                 cancelGeneration.isPending && cancelGeneration.variables === gen.id;
+              const prog = generationProgress[gen.id];
+              let chunkLabel: string | null = null;
+              if (isGenerating && prog && prog.total > 1) {
+                chunkLabel = `(${prog.completed}/${prog.total})`;
+                if (prog.completed > 0) {
+                  const etaSec =
+                    ((Date.now() - prog.startedAt) / 1000) *
+                    ((prog.total - prog.completed) / prog.completed);
+                  if (etaSec >= 1) chunkLabel += ` ~${formatEta(etaSec)} left`;
+                }
+              }
               return (
                 <div
                   key={gen.id}
@@ -546,6 +565,7 @@ export function HistoryTable() {
                         {isInProgress ? (
                           <span className="text-accent">
                             {gen.status === 'loading_model' ? 'Loading model...' : 'Generating...'}
+                            {chunkLabel ? ` ${chunkLabel}` : ''}
                           </span>
                         ) : (
                           formatDate(gen.created_at)
