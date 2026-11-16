@@ -44,6 +44,8 @@ export function useGenerationProgress() {
 
   // Track active EventSource instances
   const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
+  // Last in-progress status per id; history labels only re-render on refetch
+  const lastStatusRef = useRef<Map<string, string>>(new Map());
 
   // Unmount-only cleanup — close all SSE connections when the hook is torn down
   useEffect(() => {
@@ -82,10 +84,18 @@ export function useGenerationProgress() {
             setGenerationProgress(id, data.progress.completed, data.progress.total);
           }
 
+          if (data.status === 'loading_model' || data.status === 'generating') {
+            if (lastStatusRef.current.get(id) !== data.status) {
+              lastStatusRef.current.set(id, data.status);
+              queryClient.refetchQueries({ queryKey: ['history'] });
+            }
+          }
+
           if (data.status === 'completed') {
             source.close();
             currentSources.delete(id);
             removePendingGeneration(id);
+            lastStatusRef.current.delete(id);
 
             // Refetch history to pick up the completed generation
             queryClient.refetchQueries({ queryKey: ['history'] });
@@ -136,6 +146,7 @@ export function useGenerationProgress() {
             source.close();
             currentSources.delete(id);
             removePendingGeneration(id);
+            lastStatusRef.current.delete(id);
             removePendingStoryAdd(id);
 
             queryClient.refetchQueries({ queryKey: ['history'] });

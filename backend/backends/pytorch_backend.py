@@ -236,6 +236,12 @@ class PyTorchTTSBackend:
                 voice_clone_prompt=voice_prompt,
                 language=LANGUAGE_CODE_TO_NAME.get(language, "auto"),
                 instruct=instruct,
+                # Runaway-repetition guard: a 410-char chunk once looped to the
+                # library default 2048-token cap (43 min). Realistic length is
+                # ~2.2 tokens/char at 12 Hz; 4x char count leaves huge headroom
+                # while still bounding a loop to ~2x worst-case realistic time.
+                max_new_tokens=min(2048, 200 + int(len(text) * 4)),
+                repetition_penalty=1.15,
             )
             return wavs[0], sample_rate
 
