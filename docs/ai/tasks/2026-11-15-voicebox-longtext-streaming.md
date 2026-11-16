@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（進捗沈黙の原因修正・cuda5 sidecarデプロイ済み・ユーザー実機確認待ち）
+**Status**: 進行中（F1/F2・新exe・cuda6 sidecar デプロイ済み・実機再テスト待ち）
 **Date**: 2026-11-15
-**Next Action**: Voicebox再起動でcuda5 sidecar読込→長文生成で 1個目生成中から (0/2) 表示、完了ごとに (1/2)〜ETA・段階再生・分割品質・速度(~4分/chunk)を実機確認→OKなら end＋アーカイブ→案Cへ
+**Next Action**: 実機再テスト: 1個目生成中から (0/2) 表示、状態がGeneratingへ遷移、chunk完了でLiveListen再生可、暴走ガード(43分→上限22分程度)確認→OKなら end＋アーカイブ→案Cへ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -49,6 +49,15 @@
 - ビルド・デプロイ: cuda5 sidecar（所要16.8分、ログ永続化＋progress修正込み）を `backends\cuda` へデプロイ、直前版は `cuda.bak-logs-cu130` へ保存。素exe起動健全（既定 port 8000 で起動完了ログ確認。17999 は GUI 引数指定）。
 - commit `867fb43` fix: チャンク開始時にprogressを公開＋サーバーログファイル永続化（fork `fix/windows-quit`）。
 - 別記録: HF Hub オンライン確認リトライでモデルロードに約100秒浪費 → `known-issues/hf-hub-online-retries-slow-model-load.md`
+
+### 実機第2回テスト（2026-11-16 24:03〜24:51）と追加修正
+- サーバー側は全機能稼働をログで確認: ロード14秒、`progress=0/2→1/2` 配信、spool chunk_0/1.wav 書出し、SSE切断なし
+- **画面に何も出ない原因はインストール版 exe（11/15 11:15 ビルド）が案A実装前**（bc2cb4a 19:56・ab3241f 19:59 生成）だったため。Tauri のフロントは `tauri/vite.config.ts` の alias 経由で `app/src` を埋め込む構造
+- 追加修正 commit `85ed006`:
+  - F1 `useGenerationProgress.ts`: loading_model/generating 状態変化時に history を refetch（従来「Loading Model」ラベルが張り付く）
+  - F2 `pytorch_backend.py`: 暴走生成ガード。実測で chunk1（410字）が既定 max_new_tokens=2048 まで繰り返しループし **43分**（同尺寸正常≈4分）→ `max_new_tokens=min(2048, 200+4×文字数)`・`repetition_penalty 1.05→1.15`
+- デプロイ済み: exe（cargo再ビルド、F1込み、旧→`voicebox.exe.bak-1115`）、cuda6 sidecar（F2込み、旧→`cuda.bak-cu130b`）。検証: tsc clean・pytest 11/11・py_compile OK
+- 環境変更: HFキャッシュを `J:\modelData\huggingface` へ移設（S:\側はジャンクション、`C:\Users\fujim\.cache\huggingface` 既定パス解決チェーン維持）。効果: ロード154秒→14秒、HFリトライ騒音消滅。コピー元100GBはゴミ箱へ
 
 ## 設計上のトレードオフ（既知）
 
