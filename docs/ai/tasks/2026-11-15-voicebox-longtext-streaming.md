@@ -58,6 +58,7 @@
   - F2 `pytorch_backend.py`: 暴走生成ガード。実測で chunk1（410字）が既定 max_new_tokens=2048 まで繰り返しループし **43分**（同尺寸正常≈4分）→ `max_new_tokens=min(2048, 200+4×文字数)`・`repetition_penalty 1.05→1.15`
 - デプロイ済み: exe（cargo再ビルド、F1込み、旧→`voicebox.exe.bak-1115`）、cuda6 sidecar（F2込み、旧→`cuda.bak-cu130b`）。検証: tsc clean・pytest 11/11・py_compile OK
 - 環境変更: HFキャッシュを `J:\modelData\huggingface` へ移設（S:\側はジャンクション、`C:\Users\fujim\.cache\huggingface` 既定パス解決チェーン維持）。効果: ロード154秒→14秒、HFリトライ騒音消滅。コピー元100GBはゴミ箱へ
+- ビルド手順の陷阱（2026-11-17 実測）: `cargo build --release` だけでは `tauri/custom-protocol` が無く、起動時に devUrl（`http://localhost:5173`）を開いて接続拒否。正しくは `cargo build --release --features tauri/custom-protocol`。再ビルド・再インストール済みで解消見込み（実機起動確認待ち）
 
 ## 設計上のトレードオフ（既知）
 
