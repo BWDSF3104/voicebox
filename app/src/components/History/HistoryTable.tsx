@@ -543,6 +543,7 @@ export function HistoryTable() {
                         <LiveListenButton
                           generationId={gen.id}
                           total={prog.total}
+                          completed={prog.completed}
                           generating={isInProgress}
                         />
                       ) : (

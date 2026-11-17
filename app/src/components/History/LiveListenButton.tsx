@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
+import { useGenerationSettings } from '@/lib/hooks/useSettings';
 import { useGenerationStore } from '@/stores/generationStore';
 
 /**
@@ -10,21 +11,33 @@ import { useGenerationStore } from '@/stores/generationStore';
  * per-chunk spool files (/audio/{id}/chunk/{i}) in order, then the final audio.
  * The main-player autoplay is suppressed while this is active (see
  * useGenerationProgress + livePlaybackIds) so the audio never doubles.
+ *
+ * When the user's "autoplay on generate" setting is on, playback starts
+ * automatically as soon as the first chunk is spooled — the same experience a
+ * finished single-chunk generation gets, applied to each chunk as it lands.
  */
 interface LiveListenButtonProps {
   generationId: string;
   total: number;
+  completed: number;
   generating: boolean;
 }
 
-export function LiveListenButton({ generationId, total, generating }: LiveListenButtonProps) {
+export function LiveListenButton({
+  generationId,
+  total,
+  completed,
+  generating,
+}: LiveListenButtonProps) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const retriesRef = useRef(0);
   const generatingRef = useRef(generating);
   const totalRef = useRef(total);
+  const autoStartedRef = useRef(false);
   const addLivePlayback = useGenerationStore((s) => s.addLivePlayback);
   const removeLivePlayback = useGenerationStore((s) => s.removeLivePlayback);
+  const autoplay = useGenerationSettings().settings?.autoplay_on_generate ?? true;
 
   generatingRef.current = generating;
   totalRef.current = total;
@@ -89,6 +102,14 @@ export function LiveListenButton({ generationId, total, generating }: LiveListen
     setPlaying(true);
     playChunk(0);
   };
+
+  // Autoplay: start as soon as the first chunk is spooled, once.
+  useEffect(() => {
+    if (autoplay && !autoStartedRef.current && total > 1 && completed >= 1) {
+      autoStartedRef.current = true;
+      start();
+    }
+  }, [autoplay, total, completed]);
 
   return (
     <Button
