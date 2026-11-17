@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（F1/F2・新exe・cuda6 sidecar デプロイ済み・実機再テスト待ち）
+**Status**: 進行中（自然分割オプション実装・デプロイ済み・実機再テスト待ち）
 **Date**: 2026-11-15
-**Next Action**: 実機再テスト: 1個目生成中から (0/2) 表示、状態がGeneratingへ遷移、chunk完了でLiveListen再生可、暴走ガード(43分→上限22分程度)確認→OKなら end＋アーカイブ→案Cへ
+**Next Action**: 実機: 設定→生成→『自然な境界で分割』ONで長文生成→文末毎のチャンク数になること・(0/N)から progress・最初の再生までが速くなることを確認→OKなら end＋アーカイブ→案Cへ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -59,6 +59,13 @@
 - デプロイ済み: exe（cargo再ビルド、F1込み、旧→`voicebox.exe.bak-1115`）、cuda6 sidecar（F2込み、旧→`cuda.bak-cu130b`）。検証: tsc clean・pytest 11/11・py_compile OK
 - 環境変更: HFキャッシュを `J:\modelData\huggingface` へ移設（S:\側はジャンクション、`C:\Users\fujim\.cache\huggingface` 既定パス解決チェーン維持）。効果: ロード154秒→14秒、HFリトライ騒音消滅。コピー元100GBはゴミ箱へ
 - ビルド手順の陷阱（2026-11-17 実測）: `cargo build --release` だけでは `tauri/custom-protocol` が無く、起動時に devUrl（`http://localhost:5173`）を開いて接続拒否。正しくは `cargo build --release --features tauri/custom-protocol`。再ビルド・再インストール済みで解消見込み（実機起動確認待ち）
+
+### 自然境界優先分割オプション split_natural（2026-11-17 commit 132a8ab）
+- ユーザー発案「上限まで詰め込むのではなく、自然に切れるならどんどん切る」。UI 既定 OFF（従来挙動）
+- `chunked_tts.split_text_into_chunks(..., natural=True)`: 段落→文末の全境界で分割。120字未満の断片は直前（先頭なら次）と結合。`max_chunk_chars` は上限として尊重（超える chunks は出ない）
+- 配線: GenerationRequest.split_natural → run_generation / inline生成 → GenerationSettings（DB列 + migrations で自動追加）→ 設定UI Toggle（チャンク上限の下）→ 生成formで送信。i18n 4ロケール対応
+- テスト5件追加（文末毎分割/短断片結合/上限遵守/短文単chunk/既定OFF不変）、pytest 15/15。tsc clean、i18n JSON妥当性確認
+- デプロイ済み: exe 8:51（custom-protocol付き）+ cuda7 sidecar。旧sidecarは `cuda.bak-0517`、cuda5系バックアップ（cuda.bak-cu130b）は容量確保のため削除
 
 ## 設計上のトレードオフ（既知）
 
