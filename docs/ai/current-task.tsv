@@ -2,4 +2,4 @@ task_file	status	next_action
 docs/ai/tasks/2026-11-15-voicebox-jp-chunk-split.md	実装完了（テストpass・実機は再ビルドsidecarで確認待ち）	split改善（段落優先＋端数結合0.4閾値）実装済み。UI露出は既存（GenerationPage）で追加不要。→ --cuda sidecar再ビルド（案D込み）で反映→ユーザー実機確認
 docs/ai/tasks/2026-11-15-voicebox-audiobook-pipeline.md	未着手	章分割の粒度とUI入口の設計（decisions記録）→既存/generate+stories API再利用でパイプライン実装
 docs/ai/tasks/2026-11-15-voicebox-stream-tts.md	未着手	B①: 先頭チャンクだけ小（例200字）の分割オプション実装→初回再生待ちを実測→B②の要否判断
-docs/ai/tasks/2026-11-15-voicebox-longtext-streaming.md	進行中（自然分割オプション実装・デプロイ済み・実機再テスト待ち）	実機: 設定→生成→『自然な境界で分割』ONで長文生成→文末毎のチャンク数になること・(0/N)から progress・最初の再生までが速くなることを確認→OKなら end＋アーカイブ→案Cへ
+docs/ai/tasks/2026-11-15-voicebox-longtext-streaming.md	進行中（スライダー実装・デプロイ・画面確認済み・実機再テスト待ち）	実機: GUI起動→設定→生成→『自然な境界で分割』ON＋スライダー調整→長文生成で文末毎チャンク・(0/N)進捗・境界の聴こえ方を確認→OKなら end＋アーカイブ→案Cへ

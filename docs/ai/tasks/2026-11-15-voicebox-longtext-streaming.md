@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（自然分割オプション実装・デプロイ済み・実機再テスト待ち）
+**Status**: 進行中（スライダー実装・デプロイ・画面確認済み・実機再テスト待ち）
 **Date**: 2026-11-15
-**Next Action**: 実機: 設定→生成→『自然な境界で分割』ONで長文生成→文末毎のチャンク数になること・(0/N)から progress・最初の再生までが速くなることを確認→OKなら end＋アーカイブ→案Cへ
+**Next Action**: 実機: GUI起動→設定→生成→『自然な境界で分割』ON＋スライダー調整→長文生成で文末毎チャンク・(0/N)進捗・境界の聴こえ方を確認→OKなら end＋アーカイブ→案Cへ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -66,6 +66,13 @@
 - 配線: GenerationRequest.split_natural → run_generation / inline生成 → GenerationSettings（DB列 + migrations で自動追加）→ 設定UI Toggle（チャンク上限の下）→ 生成formで送信。i18n 4ロケール対応
 - テスト5件追加（文末毎分割/短断片結合/上限遵守/短文単chunk/既定OFF不変）、pytest 15/15。tsc clean、i18n JSON妥当性確認
 - デプロイ済み: exe 8:51（custom-protocol付き）+ cuda7 sidecar。旧sidecarは `cuda.bak-0517`、cuda5系バックアップ（cuda.bak-cu130b）は容量確保のため削除
+
+### 最小分割長スライダー natural_min_chars（2026-11-17 commit 6cfde64）
+- ユーザー要望「もっと細かく切れる選択肢が欲しい、数値で調整したい」→ 自然分割ON時のみ出るスライダー（0〜500字・step10・既定120）。0で全文末分割
+- 配線: split_text_into_chunks(..., natural_min) → generate_chunked(natural_min_chars) → run_generation/inline → GenerationRequest/SettingsResponse/Update → DB列 `natural_min_chars`（migration自動追加）→ UI Slider（crossfadeと同様の commit-on-release 保存）→ i18n 4ロケール
+- 画面確認（モデル非ロード・ヘッドレスブラウザ、vite dev + raw backend 17493）: Toggle ON→スライダー出現→ドラッグ→`PUT /settings/generation` 250字永続→**リロード後もON+250字**（スクショ `docs/ai/tmp/natural-min-slider.png`）。`/health` model_loaded:false・vram_used_mb:0.0（画面を開くだけでロードしないことを grep + 実測で確認: ロードは生成系3経路と `/models/load` ボタン経由のみ）
+- **教訓**: pytest 16/16 でも `generation.py:91` のインデント崩れ（SyntaxError）は検出されなかった（テストが services/generation.py を import しないため）。バックエンド編集後は `python -m py_compile` と実起動確認を必須とすること。修正後 py_compile 全通過・backend/cuda8 起動 OK
+- デプロイ済み: exe 9:34（`voicebox.exe.bak-0851` 退避）+ cuda8 sidecar 9:53（`cuda.bak-0851` 退避、ビルドログ `docs/ai/tmp/vb-build-cuda8.log`）。cuda8 起動時 settings API に `natural_min_chars:120` 乗ることを確認済み
 
 ## 設計上のトレードオフ（既知）
 
