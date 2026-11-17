@@ -149,6 +149,11 @@ def test_split_natural_short_text_single_chunk():
     assert split_text_into_chunks("こんにちは。", 800, natural=True) == ["こんにちは。"]
 
 
+def test_split_natural_min_zero_splits_every_sentence():
+    chunks = split_text_into_chunks("あ.い.う.", 800, natural=True, natural_min=0)
+    assert chunks == ["あ.", "い.", "う."]
+
+
 def test_split_default_unchanged_without_natural():
     text = ("あ" * 150 + "。") * 5  # 755 chars < 800 → packed in the old way
     assert split_text_into_chunks(text, 800) == [text]

@@ -18,6 +18,7 @@ export function GenerationPage() {
   const persistedCrossfadeMs = settings?.crossfade_ms ?? 50;
   const normalizeAudio = settings?.normalize_audio ?? true;
   const splitNatural = settings?.split_natural ?? false;
+  const persistedNaturalMin = settings?.natural_min_chars ?? 120;
   const autoplayOnGenerate = settings?.autoplay_on_generate ?? true;
   // Slider mirrors persist on commit (pointer-up / keyboard-release) only —
   // onValueChange would fire a PATCH for every pointer-move pixel and round-
@@ -26,6 +27,8 @@ export function GenerationPage() {
   const [crossfadeMs, setCrossfadeMs] = useState(persistedCrossfadeMs);
   useEffect(() => setMaxChunkChars(persistedMaxChunkChars), [persistedMaxChunkChars]);
   useEffect(() => setCrossfadeMs(persistedCrossfadeMs), [persistedCrossfadeMs]);
+  const [naturalMin, setNaturalMin] = useState(persistedNaturalMin);
+  useEffect(() => setNaturalMin(persistedNaturalMin), [persistedNaturalMin]);
   const [opening, setOpening] = useState(false);
   const [generationsPath, setGenerationsPath] = useState<string | null>(null);
 
@@ -116,6 +119,29 @@ export function GenerationPage() {
             />
           }
         />
+
+        {splitNatural && (
+          <SettingRow
+            title={t('settings.generation.naturalMin.title')}
+            description={t('settings.generation.naturalMin.description')}
+            action={
+              <span className="text-sm tabular-nums text-muted-foreground">
+                {t('settings.generation.naturalMin.value', { chars: naturalMin })}
+              </span>
+            }
+          >
+            <Slider
+              id="naturalMinChars"
+              value={[naturalMin]}
+              onValueChange={([value]) => setNaturalMin(value)}
+              onValueCommit={([value]) => update({ natural_min_chars: value })}
+              min={0}
+              max={500}
+              step={10}
+              aria-label={t('settings.generation.naturalMin.title')}
+            />
+          </SettingRow>
+        )}
 
         <SettingRow
           title={t('settings.generation.normalize.title')}

@@ -63,7 +63,8 @@ _PARA_TAG_RE = re.compile(r"\[[^\]]*\]")
 MIN_TAIL_RATIO = 0.4
 
 # In natural-split mode, fragments shorter than this are glued to the
-# previous fragment (very short sentences sound unstable).
+# previous fragment (very short sentences sound unstable).  Configurable
+# per request via ``natural_min_chars``; this is the default.
 NATURAL_MIN_CHARS = 120
 
 # Sentence enders, optionally followed by a closing quote (e.g. "。」").
@@ -74,6 +75,7 @@ def split_text_into_chunks(
     text: str,
     max_chars: int = DEFAULT_MAX_CHUNK_CHARS,
     natural: bool = False,
+    natural_min: int = NATURAL_MIN_CHARS,
 ) -> List[str]:
     """Split *text* at natural boundaries into chunks of at most *max_chars*.
 
@@ -96,7 +98,7 @@ def split_text_into_chunks(
     if not text:
         return []
     if natural:
-        return _split_natural(text, max_chars)
+        return _split_natural(text, max_chars, natural_min)
     if len(text) <= max_chars:
         return [text]
 
@@ -117,7 +119,7 @@ def _paragraphs(text: str) -> List[str]:
     return [p.strip() for p in text.splitlines() if p.strip()]
 
 
-def _split_natural(text: str, max_chars: int) -> List[str]:
+def _split_natural(text: str, max_chars: int, min_chars: int = NATURAL_MIN_CHARS) -> List[str]:
     """Split at every sentence boundary; glue sub-minimum fragments together."""
     units: List[str] = []
     for para in _paragraphs(text):
@@ -128,7 +130,7 @@ def _split_natural(text: str, max_chars: int) -> List[str]:
     for u in units:
         # "\s*" in _SENT_END_RE already keeps source spacing inside the unit
         buf = u if not buf else buf + u
-        if len(buf) >= NATURAL_MIN_CHARS:
+        if len(buf) >= min_chars:
             chunks.append(buf)
             buf = ""
     if buf:
@@ -357,6 +359,7 @@ async def generate_chunked(
     on_chunk=None,
     on_chunk_start=None,
     natural_split: bool = False,
+    natural_min_chars: int = NATURAL_MIN_CHARS,
 ) -> Tuple[np.ndarray, int]:
     """Generate audio with automatic chunking for long text.
 
@@ -400,7 +403,9 @@ async def generate_chunked(
     -------
     (audio, sample_rate) : Tuple[np.ndarray, int]
     """
-    chunks = split_text_into_chunks(text, max_chunk_chars, natural=natural_split)
+    chunks = split_text_into_chunks(
+        text, max_chunk_chars, natural=natural_split, natural_min=natural_min_chars
+    )
 
     if len(chunks) <= 1:
         # Short text — single-shot fast path

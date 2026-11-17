@@ -230,6 +230,7 @@ class GenerationSettings(Base):
     max_chunk_chars = Column(Integer, nullable=False, default=800)
     crossfade_ms = Column(Integer, nullable=False, default=50)
     split_natural = Column(Boolean, nullable=False, default=False)
+    natural_min_chars = Column(Integer, nullable=False, default=120)
     normalize_audio = Column(Boolean, nullable=False, default=True)
     autoplay_on_generate = Column(Boolean, nullable=False, default=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

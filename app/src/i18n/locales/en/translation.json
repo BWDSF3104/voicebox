@@ -841,6 +841,11 @@
         "title": "Split at natural boundaries",
         "description": "Instead of filling chunks up to the limit, split at every paragraph and sentence end (fragments too short to sound stable are glued to the neighbour). Earliest incremental playback, smallest retry scope."
       },
+      "naturalMin": {
+        "title": "Minimum fragment length",
+        "description": "Sentence fragments shorter than this are glued to the previous fragment. Set 0 to split at every sentence.",
+        "value": "{{chars}} chars"
+      },
       "crossfade": {
         "title": "Chunk crossfade",
         "description": "Blends audio between chunks to smooth transitions. Set to 0 for a hard cut.",

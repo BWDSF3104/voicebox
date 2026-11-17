@@ -48,6 +48,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
   const maxChunkChars = genSettings?.max_chunk_chars ?? 800;
   const crossfadeMs = genSettings?.crossfade_ms ?? 50;
   const splitNatural = genSettings?.split_natural ?? false;
+  const naturalMinChars = genSettings?.natural_min_chars ?? 120;
   const normalizeAudio = genSettings?.normalize_audio ?? true;
   const selectedEngine = useUIStore((state) => state.selectedEngine);
   const [downloadingModelName, setDownloadingModelName] = useState<string | null>(null);
@@ -157,6 +158,7 @@ export function useGenerationForm(options: UseGenerationFormOptions = {}) {
         max_chunk_chars: maxChunkChars,
         crossfade_ms: crossfadeMs,
         split_natural: splitNatural,
+        natural_min_chars: naturalMinChars,
         normalize: normalizeAudio,
         effects_chain: effectsChain?.length ? effectsChain : undefined,
       });

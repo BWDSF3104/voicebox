@@ -214,6 +214,13 @@ def _migrate_generation_settings(engine, inspector, tables: set[str]) -> None:
             "split_natural BOOLEAN NOT NULL DEFAULT 0",
             "split_natural",
         )
+    if "natural_min_chars" not in columns:
+        _add_column(
+            engine,
+            "generation_settings",
+            "natural_min_chars INTEGER NOT NULL DEFAULT 120",
+            "natural_min_chars",
+        )
 
 
 def _migrate_capture_settings(engine, inspector, tables: set[str]) -> None:
