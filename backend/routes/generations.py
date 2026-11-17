@@ -139,6 +139,7 @@ async def generate_speech(
             mode="generate",
             max_chunk_chars=data.max_chunk_chars,
             crossfade_ms=data.crossfade_ms,
+            split_natural=data.split_natural,
         )
     )
 
@@ -394,6 +395,7 @@ async def stream_speech(
         max_chunk_chars=data.max_chunk_chars,
         crossfade_ms=data.crossfade_ms,
         trim_fn=trim_fn,
+        natural_split=data.split_natural,
     )
 
     effects_chain_config = None

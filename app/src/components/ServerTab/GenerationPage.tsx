@@ -17,6 +17,7 @@ export function GenerationPage() {
   const persistedMaxChunkChars = settings?.max_chunk_chars ?? 800;
   const persistedCrossfadeMs = settings?.crossfade_ms ?? 50;
   const normalizeAudio = settings?.normalize_audio ?? true;
+  const splitNatural = settings?.split_natural ?? false;
   const autoplayOnGenerate = settings?.autoplay_on_generate ?? true;
   // Slider mirrors persist on commit (pointer-up / keyboard-release) only —
   // onValueChange would fire a PATCH for every pointer-move pixel and round-
@@ -102,6 +103,19 @@ export function GenerationPage() {
             aria-label={t('settings.generation.crossfade.title')}
           />
         </SettingRow>
+
+        <SettingRow
+          title={t('settings.generation.splitNatural.title')}
+          description={t('settings.generation.splitNatural.description')}
+          htmlFor="splitNatural"
+          action={
+            <Toggle
+              id="splitNatural"
+              checked={splitNatural}
+              onCheckedChange={(v) => update({ split_natural: v })}
+            />
+          }
+        />
 
         <SettingRow
           title={t('settings.generation.normalize.title')}

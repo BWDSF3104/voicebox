@@ -124,7 +124,35 @@ def test_split_rebalances_small_tail_japanese():
     assert "".join(chunks) == text
 
 
-def test_split_no_micro_tail_ascii():
+def test_split_natural_splits_at_every_sentence():
+    text = ("あ" * 150 + "。") * 3
+    chunks = split_text_into_chunks(text, 800, natural=True)
+    assert len(chunks) == 3
+    assert all(c == "あ" * 150 + "。" for c in chunks)
+
+
+def test_split_natural_glues_short_fragments():
+    text = "短い。" + "い" * 200 + "。"
+    chunks = split_text_into_chunks(text, 800, natural=True)
+    assert chunks == [text]
+
+
+def test_split_natural_still_respects_max():
+    text = "あ" * 1000  # one "sentence", no enders
+    chunks = split_text_into_chunks(text, 800, natural=True)
+    assert len(chunks) > 1
+    assert all(len(c) <= 800 for c in chunks)
+    assert "".join(chunks) == text
+
+
+def test_split_natural_short_text_single_chunk():
+    assert split_text_into_chunks("こんにちは。", 800, natural=True) == ["こんにちは。"]
+
+
+def test_split_default_unchanged_without_natural():
+    text = ("あ" * 150 + "。") * 5  # 755 chars < 800 → packed in the old way
+    assert split_text_into_chunks(text, 800) == [text]
+
     text = ("This is a test sentence. " * 60) + "End."
     chunks = split_text_into_chunks(text, 800)
     assert len(chunks) > 1

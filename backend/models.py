@@ -96,6 +96,10 @@ class GenerationRequest(BaseModel):
     crossfade_ms: int = Field(
         default=50, ge=0, le=500, description="Crossfade duration in ms between chunks (0 for hard cut)"
     )
+    split_natural: bool = Field(
+        default=False,
+        description="Split at every natural (paragraph/sentence) boundary rather than packing up to the chunk limit",
+    )
     normalize: bool = Field(default=True, description="Normalize output audio volume")
     effects_chain: Optional[List["EffectConfig"]] = Field(
         None, description="Effects chain to apply after generation (overrides profile default)"
@@ -291,6 +295,7 @@ class GenerationSettingsResponse(BaseModel):
 
     max_chunk_chars: int = Field(default=800, ge=100, le=5000)
     crossfade_ms: int = Field(default=50, ge=0, le=500)
+    split_natural: bool = False
     normalize_audio: bool = True
     autoplay_on_generate: bool = True
 
@@ -303,6 +308,7 @@ class GenerationSettingsUpdate(BaseModel):
 
     max_chunk_chars: Optional[int] = Field(default=None, ge=100, le=5000)
     crossfade_ms: Optional[int] = Field(default=None, ge=0, le=500)
+    split_natural: Optional[bool] = None
     normalize_audio: Optional[bool] = None
     autoplay_on_generate: Optional[bool] = None
 

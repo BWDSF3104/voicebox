@@ -45,6 +45,7 @@ async def run_generation(
     max_chunk_chars: Optional[int] = None,
     crossfade_ms: Optional[int] = None,
     version_id: Optional[str] = None,
+    split_natural: bool = False,
 ) -> None:
     """Execute TTS inference and persist the result.
 
@@ -86,6 +87,7 @@ async def run_generation(
             gen_kwargs["max_chunk_chars"] = max_chunk_chars
         if crossfade_ms is not None:
             gen_kwargs["crossfade_ms"] = crossfade_ms
+        gen_kwargs["natural_split"] = split_natural
 
         # Long-text progress + per-chunk spool for incremental playback.
         # effects_chain is applied after concatenation, so chunk spools would
@@ -296,6 +298,7 @@ async def generate_audio_sync(
     normalize: bool = True,
     max_chunk_chars: Optional[int] = None,
     crossfade_ms: Optional[int] = None,
+    split_natural: bool = False,
 ) -> bytes:
     """Run a TTS generation synchronously and return the resulting wav bytes.
 
@@ -340,6 +343,7 @@ async def generate_audio_sync(
         gen_kwargs["max_chunk_chars"] = max_chunk_chars
     if crossfade_ms is not None:
         gen_kwargs["crossfade_ms"] = crossfade_ms
+    gen_kwargs["natural_split"] = split_natural
 
     audio, sample_rate = await generate_chunked(
         tts_model, text, voice_prompt, **gen_kwargs

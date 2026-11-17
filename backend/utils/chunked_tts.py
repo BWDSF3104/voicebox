@@ -62,8 +62,19 @@ _PARA_TAG_RE = re.compile(r"\[[^\]]*\]")
 # with the previous chunk instead of becoming a standalone mini-generation.
 MIN_TAIL_RATIO = 0.4
 
+# In natural-split mode, fragments shorter than this are glued to the
+# previous fragment (very short sentences sound unstable).
+NATURAL_MIN_CHARS = 120
 
-def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) -> List[str]:
+# Sentence enders, optionally followed by a closing quote (e.g. "。」").
+_SENT_END_RE = re.compile(r"[.!?。！？](?:[」』”’]\s*)?")
+
+
+def split_text_into_chunks(
+    text: str,
+    max_chars: int = DEFAULT_MAX_CHUNK_CHARS,
+    natural: bool = False,
+) -> List[str]:
     """Split *text* at natural boundaries into chunks of at most *max_chars*.
 
     Priority: paragraph (newline) boundary → sentence-end (``.!?`` not
@@ -75,10 +86,17 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
 
     Paralinguistic tags like ``[laugh]`` are treated as atomic and will not
     be split across chunks.
+
+    When *natural* is True the text is split at *every* paragraph/sentence
+    boundary instead of packing chunks up to *max_chars* (which stays a hard
+    cap).  Fragments below ``NATURAL_MIN_CHARS`` are glued to the previous
+    fragment.
     """
     text = text.strip()
     if not text:
         return []
+    if natural:
+        return _split_natural(text, max_chars)
     if len(text) <= max_chars:
         return [text]
 
@@ -97,6 +115,48 @@ def split_text_into_chunks(text: str, max_chars: int = DEFAULT_MAX_CHUNK_CHARS) 
 def _paragraphs(text: str) -> List[str]:
     """Split on newlines, dropping blank lines."""
     return [p.strip() for p in text.splitlines() if p.strip()]
+
+
+def _split_natural(text: str, max_chars: int) -> List[str]:
+    """Split at every sentence boundary; glue sub-minimum fragments together."""
+    units: List[str] = []
+    for para in _paragraphs(text):
+        units.extend(_sentences(para))
+
+    chunks: List[str] = []
+    buf = ""
+    for u in units:
+        # "\s*" in _SENT_END_RE already keeps source spacing inside the unit
+        buf = u if not buf else buf + u
+        if len(buf) >= NATURAL_MIN_CHARS:
+            chunks.append(buf)
+            buf = ""
+    if buf:
+        if chunks:
+            chunks[-1] += buf
+        else:
+            chunks.append(buf)
+
+    return [c for chunk in chunks for c in (
+        _split_sentences(chunk, max_chars) if len(chunk) > max_chars else [chunk]
+    )]
+
+
+def _sentences(text: str) -> List[str]:
+    """Split one paragraph at every sentence ender (quotes kept with the
+    sentence they close).  Over-splitting on e.g. English abbreviations is
+    harmless: short fragments are glued back together by the caller."""
+    out: List[str] = []
+    start = 0
+    for m in _SENT_END_RE.finditer(text):
+        seg = text[start : m.end()].strip()
+        if seg:
+            out.append(seg)
+        start = m.end()
+    tail = text[start:].strip()
+    if tail:
+        out.append(tail)
+    return out
 
 
 def _split_sentences(remaining: str, max_chars: int) -> List[str]:
@@ -296,6 +356,7 @@ async def generate_chunked(
     trim_fn=None,
     on_chunk=None,
     on_chunk_start=None,
+    natural_split: bool = False,
 ) -> Tuple[np.ndarray, int]:
     """Generate audio with automatic chunking for long text.
 
@@ -339,7 +400,7 @@ async def generate_chunked(
     -------
     (audio, sample_rate) : Tuple[np.ndarray, int]
     """
-    chunks = split_text_into_chunks(text, max_chunk_chars)
+    chunks = split_text_into_chunks(text, max_chunk_chars, natural=natural_split)
 
     if len(chunks) <= 1:
         # Short text — single-shot fast path

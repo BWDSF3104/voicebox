@@ -837,6 +837,10 @@
         "description": "Long text is split into chunks at sentence boundaries. Lower values can improve quality for long outputs.",
         "value": "{{chars}} chars"
       },
+      "splitNatural": {
+        "title": "Split at natural boundaries",
+        "description": "Instead of filling chunks up to the limit, split at every paragraph and sentence end (fragments too short to sound stable are glued to the neighbour). Earliest incremental playback, smallest retry scope."
+      },
       "crossfade": {
         "title": "Chunk crossfade",
         "description": "Blends audio between chunks to smooth transitions. Set to 0 for a hard cut.",
