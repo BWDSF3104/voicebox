@@ -85,7 +85,7 @@ export function LiveListenButton({
         playFinal();
         return;
       }
-      if (++retriesRef.current > 6) {
+      if (++retriesRef.current > 24) {
         // Spool not appearing (effects profile, old backend) — give up quietly.
         stop();
         return;

@@ -137,7 +137,13 @@ export function useGenerationProgress() {
             const isAgentSpeak = data.source ? AGENT_SOURCES.has(data.source) : false;
             // Incremental chunk playback (if started) already moves on to the
             // final audio itself — skip main-player autoplay to avoid doubling.
-            const isLivePlaying = useGenerationStore.getState().livePlaybackIds.has(id);
+            // A grace window after stop covers the race where the live chain
+            // briefly drops the id (retry gap / row re-render) while its own
+            // playFinal is about to take over the final audio.
+            const live = useGenerationStore.getState();
+            const recentlyStopped =
+              Date.now() - (live.livePlaybackEndedAt.get(id) ?? -Infinity) < 30_000;
+            const isLivePlaying = live.livePlaybackIds.has(id) || recentlyStopped;
             if (autoplayRef.current && !isPlayingRef.current && !isAgentSpeak && !isLivePlaying) {
               const genAudioUrl = apiClient.getAudioUrl(id);
               setAudioWithAutoPlay(genAudioUrl, id, '', '');

@@ -16,6 +16,9 @@ interface GenerationState {
   generationProgress: Record<string, GenerationProgress>;
   /** Generations whose incremental (chunk) playback is active; suppresses completion autoplay */
   livePlaybackIds: Set<string>;
+  /** When each live playback stopped — completion autoplay stays suppressed for a grace
+   *  window after stop, otherwise the final audio doubles-up while chunk playback races */
+  livePlaybackEndedAt: Map<string, number>;
   /** Map of generationId → storyId for deferred story additions */
   pendingStoryAdds: Map<string, string>;
   addPendingGeneration: (id: string) => void;
@@ -36,6 +39,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   activeGenerationId: null,
   generationProgress: {},
   livePlaybackIds: new Set(),
+  livePlaybackEndedAt: new Map(),
   pendingStoryAdds: new Map(),
 
   addPendingGeneration: (id) =>
@@ -95,7 +99,9 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       if (!state.livePlaybackIds.has(id)) return state;
       const next = new Set(state.livePlaybackIds);
       next.delete(id);
-      return { livePlaybackIds: next };
+      const ended = new Map(state.livePlaybackEndedAt);
+      ended.set(id, Date.now());
+      return { livePlaybackIds: next, livePlaybackEndedAt: ended };
     }),
 
   addPendingStoryAdd: (generationId, storyId) =>
