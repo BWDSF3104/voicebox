@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（段階再生の自動開始を実装・デプロイ・実機再確認待ち）
+**Status**: 進行中（二重再生防止を実装・デプロイ・実機再確認待ち）
 **Date**: 2026-11-15
-**Next Action**: 実機: 自然分割ONで長文生成→最初のチャンク完成直後に順次再生が自動開始し、完了まで途切れず聴けることを確認→OKなら end＋アーカイブ→案Cへ
+**Next Action**: 実機: 自然分割ONで長文生成→チャンク順次再生が最終まで二重なりなく繋がり、完了時も最終チャンクと結合音声の同時再生が起きないことを確認→OKなら end＋アーカイブ→案Cへ
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -73,6 +73,11 @@
 - 画面確認（モデル非ロード・ヘッドレスブラウザ、vite dev + raw backend 17493）: Toggle ON→スライダー出現→ドラッグ→`PUT /settings/generation` 250字永続→**リロード後もON+250字**（スクショ `docs/ai/tmp/natural-min-slider.png`）。`/health` model_loaded:false・vram_used_mb:0.0（画面を開くだけでロードしないことを grep + 実測で確認: ロードは生成系3経路と `/models/load` ボタン経由のみ）
 - **教訓**: pytest 16/16 でも `generation.py:91` のインデント崩れ（SyntaxError）は検出されなかった（テストが services/generation.py を import しないため）。バックエンド編集後は `python -m py_compile` と実起動確認を必須とすること。修正後 py_compile 全通過・backend/cuda8 起動 OK
 - デプロイ済み: exe 9:34（`voicebox.exe.bak-0851` 退避）+ cuda8 sidecar 9:53（`cuda.bak-0851` 退避、ビルドログ `docs/ai/tmp/vb-build-cuda8.log`）。cuda8 起動時 settings API に `natural_min_chars:120` 乗ることを確認済み
+
+### 実機第4回テスト: 段階再生は成功・最終チャンクで二重再生（2026-11-17 commit b98f299）
+- 実機結果: 段階再生の自動開始 **成功**（完成チャンクから順次再生）。ただし最終チャンクの完成時点で「chunk_N 再生中 + 本編final自動再生」が二重なり
+- 原因: 完了SSE時の抑止チェックが `livePlaybackIds.has(id)` ののみで、リトライ間隙（次chunk未spool）等で list から外れたタイミングだと本編 autoplay が走る。加えてリトライ上限が6回(15s)で、次chunkの生成待ちに不足するケースがある
+- 修正: store に `livePlaybackEndedAt` を追加し、live停止後**30秒間は本編autoplayを抑止**（二重なりを timing によらず防止）。リトライ上限 6→24回（60s）で最終チャンク前のギャップを吸収。tsc clean・vite build・exe 00:48 インストール済み
 
 ### 実機第3回テスト結果 + 段階再生の自動開始（2026-11-17 commit 205102b）
 - 実機結果（自然分割スライダー・進捗）: 825字→**14 chunks**、spool=on で chunk_0..13.wav が順次生成（`backend.log`・`generations/` 実測）、生成速度OK、`progress=n/14` がリアルタイム更新OK。**ただし段階再生（完成chunk順次再生）が開始しなかった**
