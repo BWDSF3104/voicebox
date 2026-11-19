@@ -214,20 +214,21 @@ export function StoryList() {
 
   return (
     <ListPane>
-      <ListPaneHeader>
+      {/* ボタン2個のラベルがCJKで広く、360pxペインではタイトル行に収まらないため3行構成 */}
+      <ListPaneHeader className="bg-background">
         <ListPaneTitleRow>
           <ListPaneTitle>{t('stories.title')}</ListPaneTitle>
-          <ListPaneActions>
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)} size="sm">
-              <FileUp className="mr-2 h-4 w-4" />
-              {t('stories.import.button')}
-            </Button>
-            <Button onClick={() => setCreateDialogOpen(true)} size="sm">
-              <Plus className="mr-2 h-4 w-4" />
-              {t('stories.newStory')}
-            </Button>
-          </ListPaneActions>
         </ListPaneTitleRow>
+        <ListPaneActions className="mb-2 justify-end">
+          <Button variant="outline" onClick={() => setImportDialogOpen(true)} size="sm">
+            <FileUp className="h-4 w-4" />
+            {t('stories.import.button')}
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)} size="sm">
+            <Plus className="h-4 w-4" />
+            {t('stories.newStory')}
+          </Button>
+        </ListPaneActions>
         <ListPaneSearch
           value={search}
           onChange={setSearch}
@@ -236,6 +237,7 @@ export function StoryList() {
       </ListPaneHeader>
 
       <ListPaneScroll
+        className="pt-36"
         style={{ paddingBottom: hasTrackEditor ? `${trackEditorHeight + 140}px` : '170px' }}
       >
         {storyList.length === 0 ? (
