@@ -63,7 +63,7 @@
 - 本ビルドには案Dの分割改善（段落優先・端数再配置）も含む（`chunked_tts.py` 更新後に assemble 実行済み）
 
 ### 進捗UIが沈黙する根本原因と修正（2026-11-16）
-- 診断（ファイルログ＋`docs\ai\tmp\vb-sse-repro.py`、REST側からSSE購読）: chunk 1/2 生成中の約5分間、SSEイベントが**全て `progress=None`**（480個）。`update_generation_progress` はチャンク**完了時**（`_on_chunk`）しか呼ばれず、生成中のフロントに `total` すら届かなかったのが原因。SSE接続・`start_generation` 登録・受信チェーンは全て正常と確認済み。ログに `status=... but no progress in task_manager for 30s` 警告も同一兆候。
+- 診断（ファイルログ＋`docs\ai\tools\vb-sse-repro.py`、REST側からSSE購読）: chunk 1/2 生成中の約5分間、SSEイベントが**全て `progress=None`**（480個）。`update_generation_progress` はチャンク**完了時**（`_on_chunk`）しか呼ばれず、生成中のフロントに `total` すら届かなかったのが原因。SSE接続・`start_generation` 登録・受信チェーンは全て正常と確認済み。ログに `status=... but no progress in task_manager for 30s` 警告も同一兆候。
 - 修正: `chunked_tts.generate_chunked` に `on_chunk_start(i,total)` 追加（各チャンク生成**開始直前**に発火）、`services/generation.py` が `update_generation_progress(id, i, total)` を登録し**1個目の生成開始前に total を公開**。`completed` は正直な完了数維持 → フロント無変更で 1個目生成中 `(0/2)` 表示、2個目以降に ETA 表示。
 - 検証: pytest **11/11**（新規 `test_on_chunk_start_fires_before_each_chunk`: 開始コールが当該チャンクの `backend.generate()` 前に発火すること）。変更2ファイル py_compile OK。生成実測はユーザー手動方針により未実施。
 - ビルド・デプロイ: cuda5 sidecar（所要16.8分、ログ永続化＋progress修正込み）を `backends\cuda` へデプロイ、直前版は `cuda.bak-logs-cu130` へ保存。素exe起動健全（既定 port 8000 で起動完了ログ確認。17999 は GUI 引数指定）。
@@ -90,7 +90,7 @@
 ### 最小分割長スライダー natural_min_chars（2026-11-17 commit 6cfde64）
 - ユーザー要望「もっと細かく切れる選択肢が欲しい、数値で調整したい」→ 自然分割ON時のみ出るスライダー（0〜500字・step10・既定120）。0で全文末分割
 - 配線: split_text_into_chunks(..., natural_min) → generate_chunked(natural_min_chars) → run_generation/inline → GenerationRequest/SettingsResponse/Update → DB列 `natural_min_chars`（migration自動追加）→ UI Slider（crossfadeと同様の commit-on-release 保存）→ i18n 4ロケール
-- 画面確認（モデル非ロード・ヘッドレスブラウザ、vite dev + raw backend 17493）: Toggle ON→スライダー出現→ドラッグ→`PUT /settings/generation` 250字永続→**リロード後もON+250字**（スクショ `docs/ai/tmp/natural-min-slider.png`）。`/health` model_loaded:false・vram_used_mb:0.0（画面を開くだけでロードしないことを grep + 実測で確認: ロードは生成系3経路と `/models/load` ボタン経由のみ）
+- 画面確認（モデル非ロード・ヘッドレスブラウザ、vite dev + raw backend 17493）: Toggle ON→スライダー出現→ドラッグ→`PUT /settings/generation` 250字永続→**リロード後もON+250字**（スクショ `docs/ai/tools/natural-min-slider.png`）。`/health` model_loaded:false・vram_used_mb:0.0（画面を開くだけでロードしないことを grep + 実測で確認: ロードは生成系3経路と `/models/load` ボタン経由のみ）
 - **教訓**: pytest 16/16 でも `generation.py:91` のインデント崩れ（SyntaxError）は検出されなかった（テストが services/generation.py を import しないため）。バックエンド編集後は `python -m py_compile` と実起動確認を必須とすること。修正後 py_compile 全通過・backend/cuda8 起動 OK
 - デプロイ済み: exe 9:34（`voicebox.exe.bak-0851` 退避）+ cuda8 sidecar 9:53（`cuda.bak-0851` 退避、ビルドログ `docs/ai/tmp/vb-build-cuda8.log`）。cuda8 起動時 settings API に `natural_min_chars:120` 乗ることを確認済み
 
@@ -114,7 +114,7 @@
 - 再入安全性（grep 確認済み）: qwen_tts 0.1.1 の `Qwen3TTSModel` は `__init__` 以外に self 書き換え無し・global/lazy 状態無し。fork の `task_queue` は worker が `await task` で**現状複数生成は直列**（= 同一モデル同時推論は今回新領域）
 - **本質リスクはライブラリ再入でなく単一CUDA stream**: 明示 `torch.cuda.Stream` 無しでは kernel が既定 stream に直列化し「速くならない」可能性。効き量は実測必須（multi-stream 前提）
 
-**PoC スクリプト（ユーザーが起動するだけで測れる、2026-11-17 作成）** `docs/ai/tmp/poc_parallel_tts.py` + 起動用 `poc_parallel_tts.cmd`:
+**PoC スクリプト（ユーザーが起動するだけで測れる、2026-11-17 作成）** `docs/ai/tools/poc_parallel_tts.py` + 起動用 `poc_parallel_tts.cmd`（tmp ではない・git 管理）:
 - フェーズ A直列 / B 2本同時(既定stream) / C 2本同時(個別stream)、同テキスト2本・同seed=42（『こころ』抜粋約100字×2）で wall・sec/char・RTF・wavハッシュ一致（identity）を記録
 - 出力: `docs/ai/tmp/poc-parallel-tts-<stamped>.log` + 履歴追記 `poc-parallel-tts-results.json`。data-dir は GUI と同じ `%APPDATA%\sh.voicebox.app`（実 profile「モルガナ」使用）。書き込みは `docs/ai/tmp` と prompt キャッシュのみ
 - agent 側検証済み: `POC_CHECK=1` 環境変数でモデルロード直前まで（実 profile 取得・`PyTorchTTSBackend device=cuda` 確認、VRAM 不使用）。**実測（A/B/C）はユーザー起動待ち・未実施**
@@ -131,7 +131,7 @@
 ## 追加検討（案D・案C・案B）2026-11-15 観測ベース
 
 ### 案D: 日本語分割の改善（費用小・全案の品質基盤）
-実地テスト（`docs/ai/tmp/probe_jp_split.py`、日本語小説文2092字、vbtest-venvで実行）:
+実地テスト（`docs/ai/tools/probe_jp_split.py`、日本語小説文2092字、vbtest-venvで実行）:
 - 800字上限では **文末「。」境界で正しく分割**（784/785/523字。日本語文末対応は生きている）
 - **末尾ミニチャンクの弱点**: 2000字指定で末尾 **109字の端数chunk** が単独生成される（文末境界優先のみでチャンク数最適化なし）
 - 改行（段落/場面転換）優先分割は無い。引用符「」内も普通に切る（TTS上は支障なし）

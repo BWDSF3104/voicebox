@@ -15,7 +15,7 @@ jamiepine/voicebox v0.5.0 のフォーク。ローカル修正（Windowsシャ�
 
 ## コード検証（本プロジェクト）
 
-- **backend（Python）変更後**: `docs/ai/tmp/vbtest-venv` の python で `python -m pytest backend/tests/test_chunked_tts.py -v`。venv は numpy+pytest のみ。フルテストは torch 等の依存が入った venv が必要（未構築）
+- **backend（Python）変更後**: `docs/ai/tmp/vbtest-venv`（消えたら上方「テストハーネス」条の再作成手順）の python で `python -m pytest backend/tests/test_chunked_tts.py -v`。venv は numpy+pytest のみ。フルテストは torch 等の依存が入った venv が必要（未構築）
 - **app（TS）変更後**: `npx tsc -p app/tsconfig.json --noEmit`、変更ファイルのみ `npx @biomejs/biome check <files>`（既存の biome error 6件は baseline、`--write` を全ファイルにかけると import が再整形され diff が膨らむので注意）
 - **Rust（tauri/src-tauri）変更後**: `cd tauri/src-tauri && cargo check`。既存の keyboard_layout.rs 警告3件は baseline
 - **実モデルロード・生成を伴う実機検証はユーザーの手動実施**（エージェントは自動生成テストしない。VRAM 逼迫で不安定なため）: `docs/ai/decisions/2026-11-15-manual-generation-verification.md`
@@ -29,11 +29,13 @@ jamiepine/voicebox v0.5.0 のフォーク。ローカル修正（Windowsシャ�
 - **sidecar（voicebox-server.exe）再ビルド**: `backend/build_binary.py`（PyInstaller、CUDA は --onedir / CPU は --onefile）。フル venv は `backend/venv`（py3.12、requirements.txt+pyinstaller 導入済み・2026-11-15 構築）。venv 済みのビルド実測 **8.2分**（CUDA onedir 1.4GB）。`scripts/build-server.sh` は bash 前提で Windows では使えない（requirements.txt は `PYTHONUTF8=1` 付きでないと pip が cp932 で読解失敗）
   - **罠（GPU 無効化）**: Windows で `pip install torch` の既定（PyPI）wheel は **CPU 版**。CUDA sidecar には必ず `pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128`。ビルド後の確認: `backend/venv/Lib/site-packages/torch/lib` に `cublas64_12.dll` 等があり、ビルド成果物 `_internal/torch/lib` にも同梱されていること（GPU 無効だと `gpu_available:false`・CPU で激遅）
 
-## テストハーネス（docs/ai/tmp/ に常備）
+## テストハーネス・恒久スクリプト（docs/ai/tools/ に常備・git 管理）
+
+`docs/ai/tmp/` は 7 日無更新で正典 `archive_memory_bank.py` に削除されるため、再利用するスクリプトは `docs/ai/tools/` に置く。一覧・目的・参照元は `docs/ai/tools/README.md`（PoC: `poc_parallel_tts.py`/`.cmd`、DB 調査: `inspect_dbs.py`、SSE 再現: `vb-sse-repro.py`）。
 
 - `vb_close_test.py` — WM_CLOSE 送信→プロセス/ポート/残留検証（ctypes EnumWindows）。テスト用 env フック（`VB_TEST_KEEP/START/STOP`）は debug ビルド専用の一時仕込み（main.rs から除去済み）
 - `check-webview2.ps1` / `check-windows.ps1` / `screenshot-main.ps1` — WebView2 残留 / ウィンドウ列挙 / メインウィンドウ撮像（ローカル視覚判定用）
-- `vbtest-venv/` — numpy+pytest の最小 venv
+- `vbtest-venv/` — numpy+pytest の最小 venv（tmp 側は自動削除の対象。消えたら `python -m venv docs\ai\tmp\vbtest-venv && .\docs\ai\tmp\vbtest-venv\Scripts\pip install numpy pytest` で再作成、約1分）
 - 注意: voicebox.exe は stdout を継承するため、PowerShell パイプラインで起動するとハングする（Start-Process やファイルリダイレクトで回避）
 
 ## 実機デプロイ状態

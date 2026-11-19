@@ -21,7 +21,7 @@ GUI exe は `--data-dir %APPDATA%\sh.voicebox.app --port 17493` で sidecar を�
 
 ## 確認・復旧手順（データ無傷の判定法）
 1. 競合プロセス調査: `Get-CimInstance Win32_Process | ? { $_.Name -match 'voicebox' } | select CommandLine` → `--data-dir` が本物か、17493 二重起動でないか
-2. 本物 DB を read-only 集計（`docs/ai/tmp/inspect_dbs.py` に実装）: profile 2 / generation 24 を確認、消失なし
+2. 本物 DB を read-only 集計（`docs/ai/tools/inspect_dbs.py` に実装）: profile 2 / generation 24 を確認、消失なし
 3. agent 検証用プロセスを全停止 → port 17493 解放 → GUI 再起動で正常表示（API `/profiles`=2件、`/history` items=24 で確認済み）
 
 ## 教訓（再発防止）
