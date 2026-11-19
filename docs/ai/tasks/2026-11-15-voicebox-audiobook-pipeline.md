@@ -1,8 +1,8 @@
 # 案C: 長文読本パイプライン（テキスト取込→章分割→生成→story追加）
 
-**Status**: 計画作成完了（実装開始指示待ち）
+**Status**: 実装中（step1: text_split）
 **Date**: 2026-11-15
-**Next Action**: 実装開始指示→計画ステップ1（utils/text_split.py＋テスト）から。設計は decisions/2026-11-19-audiobook-import-design.md
+**Next Action**: step1→2→3→4 進行中
 
 ## 意図 / 背景
 

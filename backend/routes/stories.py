@@ -235,3 +235,40 @@ async def export_story_audio(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/stories/{story_id}/import-segments", response_model=list[models.StoryItemDetail])
+async def import_story_segments(
+    story_id: str,
+    segments: list[models.GenerationRequest],
+    db: Session = Depends(get_db),
+):
+    """Audiobook import fan-out: create one generation per text segment and
+    attach each to the story in order. Generation itself is delegated to the
+    existing /generate path (serial queue), so progress/retry are unchanged.
+
+    Item timecodes are placeholders here (durations unknown until each
+    generation finishes); the caller re-times via PUT /stories/{id}/items/times.
+    """
+    if not segments:
+        raise HTTPException(status_code=400, detail="No segments to import")
+
+    story = db.query(database.Story).filter_by(id=story_id).first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    # Import locally to avoid a circular module-level import.
+    from .generations import generate_speech
+
+    items: list[models.StoryItemDetail] = []
+    for seg in segments:
+        generation = await generate_speech(seg, db)
+        item = await stories.add_item_to_story(
+            story_id,
+            models.StoryItemCreate(generation_id=generation.id, track=0),
+            db,
+        )
+        if not item:
+            raise HTTPException(status_code=404, detail="Story or generation not found")
+        items.append(item)
+    return items

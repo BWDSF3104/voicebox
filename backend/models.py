@@ -618,6 +618,7 @@ class StoryItemDetail(BaseModel):
     instruct: Optional[str]
     engine: Optional[str] = None
     volume: float = 1.0
+    generation_status: str = "unknown"  # polling target for import progress
     generation_created_at: datetime
     # Versions available for this generation
     versions: Optional[List["GenerationVersionResponse"]] = None
@@ -647,6 +648,12 @@ class StoryItemCreate(BaseModel):
     generation_id: str
     start_time_ms: Optional[int] = None  # If not provided, will be calculated automatically
     track: Optional[int] = 0  # Track number (0 = main track)
+
+
+class StoryImportSegmentsRequest(BaseModel):
+    """Batch fan-out for the audiobook import: one GenerationRequest per segment."""
+
+    segments: List[GenerationRequest] = Field(..., min_length=1, max_length=5000)
 
 
 class StoryItemUpdateTime(BaseModel):

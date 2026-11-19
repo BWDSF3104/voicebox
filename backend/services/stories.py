@@ -72,6 +72,7 @@ def _build_item_detail(
         instruct=generation.instruct,
         engine=generation.engine,
         volume=getattr(item, "volume", 1.0),
+        generation_status=getattr(generation, "status", "unknown"),
         generation_created_at=generation.created_at,
         versions=versions,
         active_version_id=active_version_id,

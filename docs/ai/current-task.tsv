@@ -1,3 +1,3 @@
 task_file	status	next_action
-docs/ai/tasks/2026-11-15-voicebox-audiobook-pipeline.md	計画作成完了（実装開始指示待ち）	実装開始指示→計画ステップ1（utils/text_split.py＋テスト）から。設計は decisions/2026-11-19-audiobook-import-design.md
+docs/ai/tasks/2026-11-15-voicebox-audiobook-pipeline.md	実装中（step1: text_split）	step1→2→3→4 進行中
 docs/ai/tasks/2026-11-15-voicebox-stream-tts.md	未着手	B①: 先頭チャンクだけ小（例200字）の分割オプション実装→初回再生待ちを実測→B②の要否判断
