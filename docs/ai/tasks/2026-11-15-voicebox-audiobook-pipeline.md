@@ -1,8 +1,8 @@
 # 案C: 長文読本パイプライン（テキスト取込→章分割→生成→story追加）
 
-**Status**: 実装完了・exe適用済み（生成系 end-to-end はユーザー実機確認待ち）
+**Status**: 実装完了・exe+sidecar cuda9適用済み（実機 end-to-end 待ち）
 **Date**: 2026-11-15
-**Next Action**: 実機: Stories→「長文インポート」→短文10段落で生成→全item完了→連続再生→1件retry確認→OKなら end＋案Bへ
+**Next Action**: 実機: Stories→長文インポート→短文10段落で生成→全item完了→連続再生→1件retry→OKなら end＋案Bへ
 
 ## 意図 / 背景
 
@@ -56,6 +56,8 @@
 - フロント `tsc --noEmit` clean、新規 `StoryImportDialog.tsx` biome clean（既存 StoryList/StoryContent の baseline error は据え置き）、i18n 4ロケール JSON妥当性 pass、`vite build` 成功（16.3s）
 - ヘッドレスブラウザ（vite dev 5173 + raw backend 17493・孤立 data-dir）: Stories→「長文インポート」→テキスト投入→プレビューで「5項目に分割」＋行毎 profile ドロップ表示→**ボイス未設定で「生成開始」押下も fan-out せずトースト警告**（モデル非起動）。証拠 `docs/ai/tools/audiobook-import-wizard.png`
 - sidecar cuda9 デプロイ済み（ビルド 821秒・ログ `docs/ai/tmp/vb-build-cuda9.log`、旧 cuda8→`backends\cuda.bak-1119`、robocopy exit=1=成功）。**デプロイ済み sidecar exe をテストポート17494・孤立data-dirで起動確認**: `/openapi.json` に `split-preview`/`import-segments` 登録あり、`/health` model_loaded=false・vram 0.0（起動でモデルをロードしないことを再確認）。プロセス残存なし・port解放済み
+- **インストール品 起動・画面確認（2026-11-19 11:49〜11:55）**: voicebox.exe 起動→`/health` healthy・model_loaded=false・vram 0.0、GUI ウィンドウ前面スクショで生成画面描画確認（モーガナ/チョッパー実プロファイル表示＝実 DB 接続 OK・白画面なし）。証拠 `docs/ai/tools/installed-gui-startup.png`。Tauri webview 外からの座標クリックは命中しなかったため Stories Wizard の UI 操作確認は vite dev ヘッドレス版（同一 dist・`audiobook-import-wizard.png`）で完了分を根拠とする。終了: CloseMainWindow(WM_CLOSE)→voicebox 系プロセス 0・port17493解放・`check-webview2.ps1`=WEBVIEW2_CLEAN。**残し物なし**
+- harness 改善: `docs/ai/tools/screenshot-main.ps1` に SetForegroundWindow 追加（前面化して撮る。裏ウィンドウが写る問題の修正）
 - **未確認（ユーザー手動）**: 実プロファイルでの生成 fan-out・連続再生・item リトライ
 
 ## 依存 / 順序

@@ -10,3 +10,5 @@
 | `vb-sse-repro.py` | 進捗 SSE を REST 側から購読して再現（進捗UI不表示の診断に使用） | 同タスク 2026-11-16 診断 |
 | `vb_close_test.py` / `check-webview2.ps1` / `check-windows.ps1` / `screenshot-main.ps1` | Windows シャットダウン検証ハーネス（WM_CLOSE 残留検証・WebView2 残留・ウィンドウ列挙・撮像） | tasks/2026-11-15-windows-quit-fix.md |
 | `natural-min-slider.png` | natural_min スライダー画面検証の証拠スクショ | 同タスク 案A スライダー |
+| `installed-gui-startup.png` | インストール版 exe 起動時の生成画面スクショ（実プロファイル表示＝実DB/sidecar接続OK） | tasks/2026-11-15-voicebox-audiobook-pipeline.md |
+| `audiobook-import-wizard.png` | 長文インポートWizardのプレビュー表（5分割＋行毎プロファイル）スクショ | 同タスク 案C |

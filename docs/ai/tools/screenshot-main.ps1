@@ -8,6 +8,7 @@ public class W2 {
   [DllImport("user32.dll")] public static extern int GetWindowTextLength(IntPtr h);
   [DllImport("user32.dll")] public static extern IntPtr GetWindowThreadProcessId(IntPtr h, out uint pid);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L,T,R,B; }
   public delegate bool EnumWindowsProc(IntPtr h, IntPtr x);
 }
@@ -25,6 +26,7 @@ $cb = [W2+EnumWindowsProc]{ param($h,$x)
 [W2]::EnumWindows($cb,[IntPtr]::Zero) | Out-Null
 if ($cands.Count -eq 0) { 'NO_MAIN_WIN'; exit }
 $h = $cands[0]
+[W2]::SetForegroundWindow($h) | Out-Null; Start-Sleep -Milliseconds 700
 $r = New-Object W2+RECT; [W2]::GetWindowRect($h,[ref]$r) | Out-Null
 $bmp = New-Object Drawing.Bitmap ($r.R-$r.L), ($r.B-$r.T)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
