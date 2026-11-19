@@ -2,7 +2,7 @@
 
 **Status**: 進行中
 **Date**: 2026-11-20
-**Next Action**: StoryList.tsx ヘッダーをタイトル/ボタン/検索の3行化+pt-36+bg-background（ハーネス計測済み・実装指示待ち）
+**Next Action**: コミット済み(85669e4)。要: tauri再ビルド+exe差し替え後の目視確認
 
 ## 意図 / 背景
 
