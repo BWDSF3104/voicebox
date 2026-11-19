@@ -1,6 +1,6 @@
 # Storiesサイドバーヘッダーのはみ出し重なり修正
 
-**Status**: 進行中
+**Status**: 完了
 **Date**: 2026-11-20
 **Next Action**: コミット済み(85669e4)。要: tauri再ビルド+exe差し替え後の目視確認
 
@@ -24,6 +24,7 @@
 - `npx @biomejs/biome check app/src/components/StoriesTab/StoryList.tsx` → organizeImports・format の2件だが、diff 非該当のファイル全体に対する既存 baseline（AGENTS.md 記載の biome error 群。`--write` は import 再整形で diff 膨張のため不使用）。
 - Tailwind 実クラス・ハーネス計測: 修正前 actions 右端 412 > ペイン右端 392（はみ出し再現）→ 修正後 376 ≤ 392（適合、16px 余裕）。ハーネス `docs/ai/tmp/story-pane-repro.html` / `story-pane-fixed.html`。
 - 未確認: 実機exeでの目視（要再ビルド）。ヘッダー不透明化によるリストカードのスクロール時フェード消失は意図した挙動。
+- 2026-11-20 0:43 実機目視確認済み（ユーザー提供スクショ）: exe 差し替え版（2026-11-20 0:32 ビルド、バックアップ `voicebox.exe.bak-20261120`）で「ストーリー」タイトル表示・ボタン2個フル表示・はみ出し/重なりなしを確認。
 
 ## 完了時 Memory Bank 操作
 

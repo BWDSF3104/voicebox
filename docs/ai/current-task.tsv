@@ -1,4 +1,3 @@
 task_file	status	next_action
 docs/ai/tasks/2026-11-15-voicebox-audiobook-pipeline.md	実装完了・exe+sidecar cuda9適用済み（実機 end-to-end 待ち）	実機: Stories→長文インポート→短文10段落で生成→全item完了→連続再生→1件retry→OKなら end＋案Bへ
 docs/ai/tasks/2026-11-15-voicebox-stream-tts.md	未着手	B①: 先頭チャンクだけ小（例200字）の分割オプション実装→初回再生待ちを実測→B②の要否判断
-docs/ai/tasks/2026-11-20-stories-pane-overflow.md	進行中	コミット済み(85669e4)。要: tauri再ビルド+exe差し替え後の目視確認
