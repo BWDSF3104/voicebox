@@ -1,8 +1,8 @@
 # 案D: 日本語長文チャンク分割の改善（端数結合・段落優先・UI設定露出）
 
-**Status**: 実装完了（テストpass・実機は再ビルドsidecarで確認待ち）
+**Status**: 完了
 **Date**: 2026-11-15
-**Next Action**: split改善（段落優先＋端数結合0.4閾値）実装済み。UI露出は既存（GenerationPage）で追加不要。→ --cuda sidecar再ビルド（案D込み）で反映→ユーザー実機確認
+**Next Action**: なし（クローズ。UI露出の natural_min_chars は longtext-streaming 側で 6cfde64 済み）
 
 ## 意図 / 背景
 
