@@ -1,8 +1,8 @@
 # Voicebox 長文生成の進捗表示・段階再生（案A実装）
 
-**Status**: 進行中（二重再生防止を実装・デプロイ・実機再確認待ち）
+**Status**: 完了
 **Date**: 2026-11-15
-**Next Action**: 実機: 自然分割ONで長文生成→チャンク順次再生が最終まで二重なりなく繋がり、完了時も最終チャンクと結合音声の同時再生が起きないことを確認→OKなら end＋アーカイブ→案Cへ
+**Next Action**: なし（クローズ。後続は案C `2026-11-15-voicebox-audiobook-pipeline.md` へ）
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
@@ -13,7 +13,7 @@
 - sidecar `%APPDATA%\sh.voicebox.app\backends\cuda` = cuda8（11/17 9:53、natural_min_chars + スプール込み）。バックアップ: `cuda.bak-0851`（split_natural まで）、`cuda.bak-0517`、他 3 種
 - ユーザー実データ: `%APPDATA%\sh.voicebox.app\voicebox.db`（profile 2・generation 24・story 1）— **正典パスは known-issues/verify-backend-port-conflict-empties-gui.md**
 
-**このブランチのコミット順**: `867fb43`(進捗開始時公開) → `bc2cb4a`/`ab3241f`(案A) → `85ed006`(F1+F2暴走ガード) → `132a8ab`(split_natural) → `6cfde64`(natural_minスライダー) → `205102b`(段階再生の自動開始) → `b98f299`(二重再生防止) → docs系。**未実機確認は `b98f299` の二重再生防止のみ**。実機 PASS 済み: 進捗表示、自然分割14チャンク、生成速度、順次再生の自動開始。
+**このブランチのコミット順**: `867fb43`(進捗開始時公開) → `bc2cb4a`/`ab3241f`(案A) → `85ed006`(F1+F2暴走ガード) → `132a8ab`(split_natural) → `6cfde64`(natural_minスライダー) → `205102b`(段階再生の自動開始) → `b98f299`(二重再生防止) → docs系。**全項目実機PASS済み**（二重再生防止も 2026-11-19 ユーザー確認で解消）。
 
 **ビルド→デプロイ手順（実測済み・この順）**:
 1. `& "..\app\node_modules\.bin\vite.cmd" build`（cwd=`tauri\`、bun 無し、約20秒）
@@ -151,6 +151,6 @@ D（小修正）→ C（読本パイプライン、Aの進捗/段階再生がそ
 
 ## 完了時 Memory Bank 操作
 
-- [ ] `current-task.tsv` の参照行を削除
-- [ ] 解決した `known-issues/` ファイルを `known-issues/archive/` へ `mv`（該当する場合）
-- [ ] `backlog.md` の完了項目を削除（該当する場合）
+- [x] `current-task.tsv` の参照行を削除（task_manager end 実施）
+- [x] 解決した `known-issues/` を `archive/` へ移動（hf-hub-online-retries-slow-model-load.md — J:キャッシュ移設で解決）
+- [x] `backlog.md` の完了項目を削除（該当なし）
