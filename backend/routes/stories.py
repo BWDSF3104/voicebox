@@ -237,6 +237,25 @@ async def export_story_audio(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/stories/split-preview", response_model=models.StorySplitPreviewResponse)
+async def preview_story_split(
+    data: models.StorySplitPreviewRequest,
+):
+    """Preview how imported long text splits into story segments.
+
+    Stateless; the wizard calls this to show the segment table before fan-out.
+    """
+    from ..utils.text_split import split_for_story
+
+    segments = split_for_story(
+        data.text,
+        granularity=data.granularity,
+        chapter_regex=data.chapter_regex,
+        max_chars=data.max_chars,
+    )
+    return models.StorySplitPreviewResponse(segments=segments)
+
+
 @router.post("/stories/{story_id}/import-segments", response_model=list[models.StoryItemDetail])
 async def import_story_segments(
     story_id: str,

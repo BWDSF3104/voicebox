@@ -656,6 +656,19 @@ class StoryImportSegmentsRequest(BaseModel):
     segments: List[GenerationRequest] = Field(..., min_length=1, max_length=5000)
 
 
+class StorySplitPreviewRequest(BaseModel):
+    """Split raw text into story segments for the import wizard preview."""
+
+    text: str = Field(..., min_length=1, max_length=2_000_000)
+    granularity: str = Field(default="paragraph", pattern="^(paragraph|chapter|chars)$")
+    chapter_regex: Optional[str] = None
+    max_chars: int = Field(default=2000, ge=100, le=50000)
+
+
+class StorySplitPreviewResponse(BaseModel):
+    segments: List[str]
+
+
 class StoryItemUpdateTime(BaseModel):
     """Request model for updating a story item's timecode."""
 
