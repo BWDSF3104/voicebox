@@ -397,6 +397,7 @@ export interface StoryItemDetail {
   instruct?: string;
   engine?: string;
   volume: number;
+  generation_status: string;
   generation_created_at: string;
   versions?: GenerationVersionResponse[];
   active_version_id?: string;

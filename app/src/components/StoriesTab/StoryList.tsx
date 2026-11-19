@@ -1,4 +1,4 @@
-import { BookOpen, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, FileUp, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -50,6 +50,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/format';
 import { useStoryStore } from '@/stores/storyStore';
+import { StoryImportDialog } from './StoryImportDialog';
 
 export function StoryList() {
   const { t } = useTranslation();
@@ -62,6 +63,7 @@ export function StoryList() {
   const updateStory = useUpdateStory();
   const deleteStory = useDeleteStory();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingStory, setEditingStory] = useState<{
@@ -216,6 +218,10 @@ export function StoryList() {
         <ListPaneTitleRow>
           <ListPaneTitle>{t('stories.title')}</ListPaneTitle>
           <ListPaneActions>
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)} size="sm">
+              <FileUp className="mr-2 h-4 w-4" />
+              {t('stories.import.button')}
+            </Button>
             <Button onClick={() => setCreateDialogOpen(true)} size="sm">
               <Plus className="mr-2 h-4 w-4" />
               {t('stories.newStory')}
@@ -430,6 +436,8 @@ export function StoryList() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <StoryImportDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} />
     </ListPane>
   );
 }

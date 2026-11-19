@@ -1,8 +1,8 @@
 # 案C: 長文読本パイプライン（テキスト取込→章分割→生成→story追加）
 
-**Status**: 実装中（step1: text_split）
+**Status**: 実装完了・exe適用済み（生成系 end-to-end はユーザー実機確認待ち）
 **Date**: 2026-11-15
-**Next Action**: step1→2→3→4 進行中
+**Next Action**: 実機: Stories→「長文インポート」→短文10段落で生成→全item完了→連続再生→1件retry確認→OKなら end＋案Bへ
 
 ## 意図 / 背景
 
@@ -33,13 +33,30 @@
 - 生成は直列 0.6秒/字 → 10万字の本≈17時間。全体高速化は chunk 並行 PoC（`docs/ai/tools/poc_parallel_tts.py`）結果待ちの別案件。パイプライン自体は途中完成分から聴ける
 - `enqueue_generation` の一括投入は DB 行＋メモリ上のジョブだけなので安全
 
-## 調査結果 / 変更内容
+## 調査結果 / 変更内容（2026-11-19 実装）
 
-（着手時に記入。実装方針: 足りないのは入口だけ — テキスト取込→章/段落分割→item毎に `/generate` キュー投入→story へ自動追加。新推論経路は不要。章分割粒度・UI入口（新規タブかStories内インポートか）・章の再試行/停止は設計段階で decisions に記録）
+計画からの実装上の変更点:
+- **generate_speech のヘルパー抽出は不要だった**: fan-out endpoint から `routes/generations.py` の `generate_speech(data, db)` を直接呼ぶ。FastAPI ルート関数はそのまま async 関数なので import して呼べる。進捗SSE・リトライ・暴走ガード等 `/generate` の全機能が自動的に同じ。**検証済み生成経路に手を入れない**ため安全で差分も最小。
 
-## Verification
+バックエンド（commit 7511fb5 ほか）:
+- `utils/text_split.py`: `split_for_story(text, granularity, chapter_regex, max_chars)`。`paragraph`（既定・1行=1段落）/`chapter`（見出し正規表現、既定`^第…章`、不発時 paragraph に fallback、不正正規表現も paragraph）/`chars`（既存 `chunked_tts.split_text_into_chunks` 再利用）
+- `routes/stories.py`: `POST /stories/split-preview`（生テキスト→分割案、stateless、モデル非起動）と `POST /stories/{id}/import-segments`（segments を受けて段落毎に generate_speech→add_item。空/不在storyは 400/404 で fan-out 前に拒绝）
+- `models.py`: `StoryItemDetail.generation_status`（進捗ポーリング対象、既定unknown）、`StorySplitPreviewRequest/Response`。`StoryItemDetail` に status があったので新規列・DB migration なし
+- 時刻確定は投入時 placeholder（既存 add_item の自動末尾配置）。**再生順の確定はフロント完了時に既存 `PUT /items/reorder`（timecode再計算）を import 順で1回呼ぶ**（新規 endpoint 追加なし）
 
-（未実施。予定: 章分割ロジックのユニットテスト、パイプライン end-to-end は dev モードまたは sidecar 再ビルド版で実機確認）
+フロント（commit 予定）:
+- `StoryImportDialog.tsx`（新規・StoriesTab）: 本のタイトル＋テキスト投入→粒度セレクト→プレビュー→item毎 profile ドロップダウン→生成開始。進捗は `GET /stories/{id}` を2秒ポーリング（`generation_status` 完了+失敗>=total で reorder 後トースト）。fan-out 完了後はサーバー側生成でも dialog を閉じられる
+- `StoryList.tsx`: ヘッダに「長文インポート」按钮 → dialog 起動。client.ts に `previewStorySplit`/`importStorySegments`、型に `generation_status`、i18n 4ロケール
+
+## Verification（2026-11-19）
+
+- pytest `test_text_split.py` 新規7件 pass（3粒度・空行除去・章見出し保持・不発/不正正規表現 fallback・chars 上限）。既存 `test_chunked_tts.py` と合わせて **23 passed**
+- 変更 backend py すべて py_compile pass
+- backend 起動（`backend\venv`、uvicorn）: `/stories/split-preview` 章粒度で2 segment 返却、`import-segments` は空body→400、不在story→404（**いずれも fan-out 前拒绝でモデル非起動**）確認
+- フロント `tsc --noEmit` clean、新規 `StoryImportDialog.tsx` biome clean（既存 StoryList/StoryContent の baseline error は据え置き）、i18n 4ロケール JSON妥当性 pass、`vite build` 成功（16.3s）
+- ヘッドレスブラウザ（vite dev 5173 + raw backend 17493・孤立 data-dir）: Stories→「長文インポート」→テキスト投入→プレビューで「5項目に分割」＋行毎 profile ドロップ表示→**ボイス未設定で「生成開始」押下も fan-out せずトースト警告**（モデル非起動）。証拠 `docs/ai/tools/audiobook-import-wizard.png`
+- exe ビルド（`cargo build --release --features tauri/custom-protocol` 2m12s）・`C:\Program Files\Voicebox\voicebox.exe` へ適用（旧→`voicebox.exe.bak-1119a`）。**sidecar cuda9 再ビルド＋robocopy /MIR 必須**（cuda8=11/17ビルドは新ルート不在でインストール版は 404 になる。ログ `docs/ai/tmp/vb-build-cuda9.log`、完了後に本行へ結果記録）
+- **未確認（ユーザー手動）**: 実プロファイルでの生成 fan-out・連続再生・item リトライ
 
 ## 依存 / 順序
 

@@ -727,6 +727,26 @@ class ApiClient {
     });
   }
 
+  async previewStorySplit(data: {
+    text: string;
+    granularity: 'paragraph' | 'chapter' | 'chars';
+    chapter_regex?: string;
+    max_chars?: number;
+  }): Promise<string[]> {
+    const res = await this.request<{ segments: string[] }>('/stories/split-preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.segments;
+  }
+
+  async importStorySegments(storyId: string, segments: GenerationRequest[]): Promise<StoryItemDetail[]> {
+    return this.request<StoryItemDetail[]>(`/stories/${storyId}/import-segments`, {
+      method: 'POST',
+      body: JSON.stringify(segments),
+    });
+  }
+
   async addStoryItem(storyId: string, data: StoryItemCreate): Promise<StoryItemDetail> {
     return this.request<StoryItemDetail>(`/stories/${storyId}/items`, {
       method: 'POST',

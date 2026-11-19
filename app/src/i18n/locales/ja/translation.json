@@ -561,6 +561,30 @@
   "stories": {
     "title": "ストーリー",
     "newStory": "新しいストーリー",
+    "import": {
+      "button": "長文インポート",
+      "title": "長文をインポート",
+      "nameLabel": "本のタイトル",
+      "textLabel": "長文テキスト",
+      "granularityLabel": "分割粒度",
+      "gran": {
+        "paragraph": "段落（1行）",
+        "chapter": "章（見出し）",
+        "chars": "文字数"
+      },
+      "previewButton": "プレビュー",
+      "segmentsFound": "{{count}} 項目に分割されました",
+      "profile": "ボイス",
+      "startButton": "生成開始",
+      "generating": "生成中（{{done}}/{{total}}）",
+      "toast": {
+        "splitFailed": "分割に失敗しました",
+        "noProfile": "ボイスが設定されていません",
+        "importFailed": "インポートに失敗しました",
+        "importDone": "長文インポートが完了しました",
+        "importDonePartial": "{{failed}} 項目失敗しました。履歴から再生成できます"
+      }
+    },
     "loading": "ストーリーを読み込み中…",
     "searchPlaceholder": "ストーリーを検索…",
     "empty": {

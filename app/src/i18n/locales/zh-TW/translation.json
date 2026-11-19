@@ -561,6 +561,30 @@
   "stories": {
     "title": "故事",
     "newStory": "新增故事",
+    "import": {
+      "button": "匯入長文",
+      "title": "匯入長文",
+      "nameLabel": "書名",
+      "textLabel": "長文本",
+      "granularityLabel": "分段粒度",
+      "gran": {
+        "paragraph": "段落（每行）",
+        "chapter": "章節（標題）",
+        "chars": "字元數"
+      },
+      "previewButton": "預覽",
+      "segmentsFound": "共分為 {{count}} 段",
+      "profile": "音色",
+      "startButton": "開始生成",
+      "generating": "正在生成（{{done}}/{{total}}）",
+      "toast": {
+        "splitFailed": "分段失敗",
+        "noProfile": "未選擇音色",
+        "importFailed": "匯入失敗",
+        "importDone": "長文匯入完成",
+        "importDonePartial": "{{failed}} 段失敗，可從歷史記錄重新生成"
+      }
+    },
     "loading": "載入故事中…",
     "searchPlaceholder": "搜尋故事…",
     "empty": {

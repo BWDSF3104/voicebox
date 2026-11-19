@@ -561,6 +561,30 @@
   "stories": {
     "title": "Stories",
     "newStory": "New Story",
+    "import": {
+      "button": "Import Text",
+      "title": "Import Long Text",
+      "nameLabel": "Book title",
+      "textLabel": "Long text",
+      "granularityLabel": "Split granularity",
+      "gran": {
+        "paragraph": "Paragraph (per line)",
+        "chapter": "Chapter (heading)",
+        "chars": "Characters"
+      },
+      "previewButton": "Preview",
+      "segmentsFound": "{{count}} segments found",
+      "profile": "Voice",
+      "startButton": "Start generation",
+      "generating": "Generating ({{done}}/{{total}})",
+      "toast": {
+        "splitFailed": "Splitting failed",
+        "noProfile": "No voice selected",
+        "importFailed": "Import failed",
+        "importDone": "Long text import completed",
+        "importDonePartial": "{{failed}} segments failed. Regenerate them from history."
+      }
+    },
     "loading": "Loading stories…",
     "searchPlaceholder": "Search stories…",
     "empty": {
