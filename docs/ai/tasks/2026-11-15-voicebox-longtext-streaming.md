@@ -6,6 +6,26 @@
 
 > **このファイルが正典**（2026-11-15 移管、`decisions/2026-11-15-docs-relocation-to-voicebox.md` 参照）。Common_Operations 側に同名コピーが残っている場合、そちらは凍結なので更新内容は本ファイルへ反映すること。
 
+## 引き継ぎサマリ（2026-11-19 時点）
+
+**稼働中の現物**（全て fork `BWDSF3104/voicebox` ブランチ `fix/windows-quit`）:
+- `C:\Program Files\Voicebox\voicebox.exe` = 11/18 0:48 ビルド（= 最終コミット `fe43727` 相当のフロント、custom-protocol 付き）。バックアップ: `voicebox.exe.bak-0851`（split_natural まで・スライダー無し）、`voicebox.exe.bak-1115`（案A前）、`voicebox.exe.bak`（4/25 原版）
+- sidecar `%APPDATA%\sh.voicebox.app\backends\cuda` = cuda8（11/17 9:53、natural_min_chars + スプール込み）。バックアップ: `cuda.bak-0851`（split_natural まで）、`cuda.bak-0517`、他 3 種
+- ユーザー実データ: `%APPDATA%\sh.voicebox.app\voicebox.db`（profile 2・generation 24・story 1）— **正典パスは known-issues/verify-backend-port-conflict-empties-gui.md**
+
+**このブランチのコミット順**: `867fb43`(進捗開始時公開) → `bc2cb4a`/`ab3241f`(案A) → `85ed006`(F1+F2暴走ガード) → `132a8ab`(split_natural) → `6cfde64`(natural_minスライダー) → `205102b`(段階再生の自動開始) → `b98f299`(二重再生防止) → docs系。**未実機確認は `b98f299` の二重再生防止のみ**。実機 PASS 済み: 進捗表示、自然分割14チャンク、生成速度、順次再生の自動開始。
+
+**ビルド→デプロイ手順（実測済み・この順）**:
+1. `& "..\app\node_modules\.bin\vite.cmd" build`（cwd=`tauri\`、bun 無し、約20秒）
+2. `cargo build --release --features tauri/custom-protocol`（cwd=`tauri\src-tauri`、約2〜3分。**この feature 必須**、無いと devUrl 起動で接続拒否）
+3. exe 交換: GUI 終了確認後 `Copy-Item target\release\voicebox.exe "C:\Program Files\Voicebox\voicebox.exe" -Force`
+4. sidecar 変更時のみ: `& ".\venv\Scripts\python.exe" build_binary.py --cuda`（cwd=`backend\`、約16〜19分、ログは `docs\ai\tmp\`）→ GUI 終了確認後 `robocopy dist\voicebox-server-cuda "$env:APPDATA\sh.voicebox.app\backends\cuda" /MIR`
+5. 検証: pytest（下記）+ 編集した全 py の `python -m py_compile` + backend 起動確認（**教訓: pytest では services/generation.py の構文エラーは検出不能**）
+
+**テスト実行**: `& "S:\Documents\Kilo_Commons\Common_Operations\docs\ai\tmp\vbtest-venv\Scripts\python.exe" -m pytest backend/tests/test_chunked_tts.py -q`（cwd=voicebox、16件）。フロント型: `.\app\node_modules\.bin\tsc.cmd -p app/tsconfig.json --noEmit`。
+
+**検証方針**: 生成・モデルロード系の動作確認はユーザー実機のみ（GPU 使用、`decisions/2026-11-15-manual-generation-verification.md`）。画面確認・API 確認はヘッドレスブラウザ + raw backend で agent 側で可能（モデル非ロード、`known-issues/verify-backend-port-conflict-empties-gui.md` のポート/data-dir 制約を必ず守る）。
+
 ## 意図 / 背景
 
 長文（小説等の日本語音声化）を TTS 生成する際、v0.5.0 は「全チャンク生成完了まで待ってから再生可能」で、生成中の進捗も分からない。ユーザー要望で案A（段階再生＋低コスト進捗表示）を実施。進捗は生成速度に実質影響なし（メモリ記録＋既存SSE相乗り）が条件。調査は親タスク `2026-11-15-voicebox-windows-quit-fix.md` の検討セクション参照。
@@ -84,6 +104,23 @@
 - 原因: `LiveListenButton`（履歴行のスピーカーicon）は**従来手動ボタン**で、押すまで chunk_0 から再生を開始しない設計。UI的に気づきにくく「順次再生されない」に見えた。スプールも `/audio/{id}/chunk/{i}` endpoint も frontend URL も全て正常（欠陥は自動開始が無いことのみ）
 - 修正: `autoplay_on_generate`（既定ON）がONのとき、**最初のチャンク完成（completed>=1）・total>1 で自動開始**。完成時は既存の `livePlaybackIds` 抑制でメインplayer autoplay と二重再生しない。手動トグルも従来どおり有効。tsc clean・vite build・exe 00:08 インストール済み
 - 教訓: spool生成・配信は backend 側が完全動作していたため、段階再生の不具合は**必ず frontend 再生トリガ側**を疑うこと
+
+## chunk 並行生成（生成速度向上）の調査と PoC（2026-11-17）
+
+ユーザー要望「品質を下げず生成自体を速く」→ 分析結果（**実測前、コード grep まで**）:
+- chunk 総生成時間はほぼ文字数比例で分割数に非依存（0.6秒/字は chunk160〜410字で同率）。細切れで増えるのは chunk 毎固定費（decode/trim/保存で1〜3秒）だけ = 数%
+- **品質を一切変えない現実的な高速化は chunk 並行化のみ**（自己回帰デコードは帯域律速、3090 で 2〜3 並行 → wall 2〜2.5倍見込み、出力音質は決定論的に同一）。案C（章並行）でも同一機構を再利用できる
+- 品質無保証（int8/AWQ 量子化）とモデル縮小は要件外。dtype は既に bf16（3.4GB/1.7B）で改善余地なし
+- 再入安全性（grep 確認済み）: qwen_tts 0.1.1 の `Qwen3TTSModel` は `__init__` 以外に self 書き換え無し・global/lazy 状態無し。fork の `task_queue` は worker が `await task` で**現状複数生成は直列**（= 同一モデル同時推論は今回新領域）
+- **本質リスクはライブラリ再入でなく単一CUDA stream**: 明示 `torch.cuda.Stream` 無しでは kernel が既定 stream に直列化し「速くならない」可能性。効き量は実測必須（multi-stream 前提）
+
+**PoC スクリプト（ユーザーが起動するだけで測れる、2026-11-17 作成）** `docs/ai/tmp/poc_parallel_tts.py` + 起動用 `poc_parallel_tts.cmd`:
+- フェーズ A直列 / B 2本同時(既定stream) / C 2本同時(個別stream)、同テキスト2本・同seed=42（『こころ』抜粋約100字×2）で wall・sec/char・RTF・wavハッシュ一致（identity）を記録
+- 出力: `docs/ai/tmp/poc-parallel-tts-<stamped>.log` + 履歴追記 `poc-parallel-tts-results.json`。data-dir は GUI と同じ `%APPDATA%\sh.voicebox.app`（実 profile「モルガナ」使用）。書き込みは `docs/ai/tmp` と prompt キャッシュのみ
+- agent 側検証済み: `POC_CHECK=1` 環境変数でモデルロード直前まで（実 profile 取得・`PyTorchTTSBackend device=cuda` 確認、VRAM 不使用）。**実測（A/B/C）はユーザー起動待ち・未実施**
+- 読み取り: B≈A なら単一stream直列＝multi-stream必須、B<0.8×A なら gather だけで速い。B/C が A とハッシュ DIFFERENT ならモデル競合でなく**グローバルRNG共有**の想定（manual_seed が global）
+
+**並行化の実装設計（未実装・指示待ち）**: `GenerationRequest/GenerationSettings` に `concurrent_chunks:int=1`（1=現行動作同一）→ chunked_tts 内で semaphore+gather。再生順は spool が index キー済みで完成順シャッフルに不変・先頭chunk優先で初回再生時間は現状維持。リスクは上記 stream + 同一インスタンス同時推論の可否。
 
 ## 設計上のトレードオフ（既知）
 
