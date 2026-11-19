@@ -55,7 +55,7 @@
 - backend 起動（`backend\venv`、uvicorn）: `/stories/split-preview` 章粒度で2 segment 返却、`import-segments` は空body→400、不在story→404（**いずれも fan-out 前拒绝でモデル非起動**）確認
 - フロント `tsc --noEmit` clean、新規 `StoryImportDialog.tsx` biome clean（既存 StoryList/StoryContent の baseline error は据え置き）、i18n 4ロケール JSON妥当性 pass、`vite build` 成功（16.3s）
 - ヘッドレスブラウザ（vite dev 5173 + raw backend 17493・孤立 data-dir）: Stories→「長文インポート」→テキスト投入→プレビューで「5項目に分割」＋行毎 profile ドロップ表示→**ボイス未設定で「生成開始」押下も fan-out せずトースト警告**（モデル非起動）。証拠 `docs/ai/tools/audiobook-import-wizard.png`
-- exe ビルド（`cargo build --release --features tauri/custom-protocol` 2m12s）・`C:\Program Files\Voicebox\voicebox.exe` へ適用（旧→`voicebox.exe.bak-1119a`）。**sidecar cuda9 再ビルド＋robocopy /MIR 必須**（cuda8=11/17ビルドは新ルート不在でインストール版は 404 になる。ログ `docs/ai/tmp/vb-build-cuda9.log`、完了後に本行へ結果記録）
+- sidecar cuda9 デプロイ済み（ビルド 821秒・ログ `docs/ai/tmp/vb-build-cuda9.log`、旧 cuda8→`backends\cuda.bak-1119`、robocopy exit=1=成功）。**デプロイ済み sidecar exe をテストポート17494・孤立data-dirで起動確認**: `/openapi.json` に `split-preview`/`import-segments` 登録あり、`/health` model_loaded=false・vram 0.0（起動でモデルをロードしないことを再確認）。プロセス残存なし・port解放済み
 - **未確認（ユーザー手動）**: 実プロファイルでの生成 fan-out・連続再生・item リトライ
 
 ## 依存 / 順序
